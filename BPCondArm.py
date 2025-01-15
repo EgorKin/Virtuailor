@@ -1,6 +1,6 @@
-import idc
-import idaapi
-import idautils
+#import idc
+#import idaapi
+#import idautils
 
 def make_func(ea):
     code_err = idc.MakeCode(ea)

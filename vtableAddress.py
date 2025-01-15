@@ -8,8 +8,9 @@ import sys, os
 
 idaapi.require("AddBP")
 
-REGISTERS = [
-    "r1",
+# ARM
+REGISTERS = [f"R{m}" for m in range(14 + 1)] + [
+    # x86, x64
     "eax",
     "ebx",
     "ecx",
@@ -21,6 +22,7 @@ REGISTERS = [
     "r9",
     "r10",
     "r8",
+    # Aarch64
     "X0",
     "X1",
     "X2",

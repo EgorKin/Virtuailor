@@ -8,9 +8,9 @@ idaapi.require("vtableAddress")
 idaapi.require("GUI")
 
 # for LSP only
-import AddBP
-import vtableAddress
-import GUI
+# import AddBP
+# import vtableAddress
+# import GUI
 
 from vtableAddress import REGISTERS
 
