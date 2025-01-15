@@ -8,9 +8,51 @@ import sys, os
 
 idaapi.require("AddBP")
 
-REGISTERS = ['eax', 'ebx', 'ecx', 'edx', 'rax', 'rbx', 'rcx', 'rdx', 'r9', 'r10', 'r8', 'X0', 'X1', 'X2', 'X3', 'X4',
-             'X5', 'X6', 'X7', 'X8', 'X9', 'X10', 'X11', 'X12', 'X13', 'X14', 'X15', 'X16', 'X17', 'X18', 'X19', 'X20',
-             'X21', 'X22', 'X23', 'X24', 'X25', 'X26', 'X27', 'X28', 'X29', 'X30', 'X31']
+REGISTERS = [
+    "eax",
+    "ebx",
+    "ecx",
+    "edx",
+    "rax",
+    "rbx",
+    "rcx",
+    "rdx",
+    "r9",
+    "r10",
+    "r8",
+    "X0",
+    "X1",
+    "X2",
+    "X3",
+    "X4",
+    "X5",
+    "X6",
+    "X7",
+    "X8",
+    "X9",
+    "X10",
+    "X11",
+    "X12",
+    "X13",
+    "X14",
+    "X15",
+    "X16",
+    "X17",
+    "X18",
+    "X19",
+    "X20",
+    "X21",
+    "X22",
+    "X23",
+    "X24",
+    "X25",
+    "X26",
+    "X27",
+    "X28",
+    "X29",
+    "X30",
+    "X31",
+]
 
 
 def get_processor_architecture():
@@ -31,7 +73,9 @@ def get_local_var_value_64(loc_var_name):
     loc_var = ida_struct.get_member_by_name(frame, loc_var_name)
     loc_var_start = loc_var.soff
     loc_var_ea = loc_var_start + idc.GetRegValue("RSP")
-    loc_var_value = idc.read_dbg_qword(loc_var_ea)  # in case the variable is 32bit, just use get_wide_dword() instead
+    loc_var_value = idc.read_dbg_qword(
+        loc_var_ea
+    )  # in case the variable is 32bit, just use get_wide_dword() instead
     return loc_var_value
 
 
@@ -49,7 +93,9 @@ def get_arch_dct():
             dct_arch["val_offset"] = 1
         return dct_arch
     else:
-        print("Error, Architecture is not supported. Supported architectures are Intel x64/x32 and Arm x64")
+        print(
+            "Error, Architecture is not supported. Supported architectures are Intel x64/x32 and Arm x64"
+        )
         return -1
 
 
@@ -64,23 +110,26 @@ def get_con2_var_or_num(i_cnt, cur_addr):
     cur_addr = idc.PrevHead(cur_addr)
     dct_arch = get_arch_dct()
     if dct_arch == -1:
-        return 'Wrong Architechture', "-1", cur_addr
+        return "Wrong Architechture", "-1", cur_addr
 
     while cur_addr >= start_addr:
-        if idc.GetMnem(cur_addr)[:3] == dct_arch["opcode"] and idc.GetOpnd(cur_addr, 0) == i_cnt:  # TODO lea ?
+        if (
+            idc.GetMnem(cur_addr)[:3] == dct_arch["opcode"]
+            and idc.GetOpnd(cur_addr, 0) == i_cnt
+        ):  # TODO lea ?
             opnd2 = idc.GetOpnd(cur_addr, 1)
             place = opnd2.find(dct_arch["separator"])
             if place != -1:  # if the function is not the first in the vtable
-                register = opnd2[opnd2.find('[') + 1: place]
-                if opnd2.find('*') == -1:
-                    offset = opnd2[place + dct_arch["val_offset"]: opnd2.find(']')]
+                register = opnd2[opnd2.find("[") + 1 : place]
+                if opnd2.find("*") == -1:
+                    offset = opnd2[place + dct_arch["val_offset"] : opnd2.find("]")]
                 else:
                     offset = "*"
                 return register, offset, cur_addr
             else:
                 offset = "0"
-                if opnd2.find(']') != -1:
-                    register = opnd2[opnd2.find('[') + 1: opnd2.find(']')]
+                if opnd2.find("]") != -1:
+                    register = opnd2[opnd2.find("[") + 1 : opnd2.find("]")]
                 else:
                     register = opnd2
                 return register, offset, cur_addr
@@ -90,13 +139,15 @@ def get_con2_var_or_num(i_cnt, cur_addr):
             if "guard_check_icall_fptr" not in intr_func_name:
                 if "nullsub" not in intr_func_name:
                     # intr_func_name = idc.Demangle(intr_func_name, idc.GetLongPrm(idc.INF_SHORT_DN))
-                    print("Warning! At address 0x%08x: The vtable assignment might be in another function (Maybe %s),"
-                          " could not place BP." % (virt_call_addr, intr_func_name))
+                    print(
+                        "Warning! At address 0x%08x: The vtable assignment might be in another function (Maybe %s),"
+                        " could not place BP." % (virt_call_addr, intr_func_name)
+                    )
                 cur_addr = start_addr
         cur_addr = idc.PrevHead(cur_addr)
     return "out of the function", "-1", cur_addr
 
-    return '', 0, cur_addr
+    return "", 0, cur_addr
 
 
 def get_bp_condition(start_addr, register_vtable, offset):
@@ -105,11 +156,16 @@ def get_bp_condition(start_addr, register_vtable, offset):
     if arch == "Intel":
         if is_64:
             file_name = "BPCond64.py"
-    else:
-        file_name = "BPCondAarch64.py"
-    condition_file = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), file_name)
+    else:  # ARM
+        if is_64:
+            file_name = "BPCondAarch64.py"
+        else:
+            file_name = "BPCondArm.py"
+    condition_file = os.path.join(
+        os.path.dirname(os.path.abspath(sys.argv[0])), file_name
+    )
     if arch != "Error" or (arch == "ARM" and not is_64):
-        with open(condition_file, 'rb') as f1:
+        with open(condition_file, "rb") as f1:
             bp_cond_text = f1.read()
         bp_cond_text = bp_cond_text.replace("<<<start_addr>>>", str(start_addr))
         bp_cond_text = bp_cond_text.replace("<<<register_vtable>>>", register_vtable)
@@ -144,14 +200,14 @@ def write_vtable2file(start_addr):
         arch_dct = get_arch_dct()
         plus_indx = raw_opnd.find(arch_dct["separator"])
         if plus_indx != -1:
-            call_offset = raw_opnd[plus_indx + 1:raw_opnd.find(']')]
+            call_offset = raw_opnd[plus_indx + 1 : raw_opnd.find("]")]
             # if the offset is in hex
-            if call_offset.find('h') != -1:
-                call_offset = int(call_offset[:call_offset.find('h')], 16)
-        if offset.find('h') != -1:
-            offset = str(int(offset[:offset.find('h')], 16))
-        elif offset.find('0x') != -1:
-            offset = str(int(offset[offset.find('0x') + 2:], 16))
+            if call_offset.find("h") != -1:
+                call_offset = int(call_offset[: call_offset.find("h")], 16)
+        if offset.find("h") != -1:
+            offset = str(int(offset[: offset.find("h")], 16))
+        elif offset.find("0x") != -1:
+            offset = str(int(offset[offset.find("0x") + 2 :], 16))
     except ValueError:
         # A offset structure was set, the old offset will be deleted
         set_bp = False
