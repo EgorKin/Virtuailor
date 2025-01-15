@@ -48,7 +48,7 @@ def add_bp_to_virtual_calls(cur_addr, end):
                 cond, bp_address = vtableAddress.write_vtable2file(cur_addr)
                 if cond != "":
                     bp_vtable = AddBP.add(bp_address, cond)
-                    print("BP added at: ", hex(bp_vtable))
+                    print("BP added at: ", hex(bp_address))
         cur_addr = idc.NextHead(cur_addr)
 
 
