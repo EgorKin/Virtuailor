@@ -9,6 +9,7 @@ import sys, os
 idaapi.require("AddBP")
 
 REGISTERS = [
+    "r1",
     "eax",
     "ebx",
     "ecx",

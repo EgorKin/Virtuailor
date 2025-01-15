@@ -41,6 +41,7 @@ def add_bp_to_virtual_calls(cur_addr, end):
             or idc.GetMnem(cur_addr) == "BLX"
         ):
             print("Virtual Call at: ", hex(cur_addr))
+            print("reg0", idc.GetOpnd(cur_addr, 0))
             if True in [
                 idc.GetOpnd(cur_addr, 0).find(reg) != -1 for reg in REGISTERS
             ]:  # idc.GetOpnd(cur_addr, 0) in REGISTERS:
