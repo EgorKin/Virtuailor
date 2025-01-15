@@ -40,12 +40,14 @@ def add_bp_to_virtual_calls(cur_addr, end):
             or idc.GetMnem(cur_addr) == "BLR"
             or idc.GetMnem(cur_addr) == "BLX"
         ):
+            print("Virtual Call at: ", hex(cur_addr))
             if True in [
                 idc.GetOpnd(cur_addr, 0).find(reg) != -1 for reg in REGISTERS
             ]:  # idc.GetOpnd(cur_addr, 0) in REGISTERS:
                 cond, bp_address = vtableAddress.write_vtable2file(cur_addr)
                 if cond != "":
                     bp_vtable = AddBP.add(bp_address, cond)
+                    print("BP added at: ", hex(bp_vtable))
         cur_addr = idc.NextHead(cur_addr)
 
 
