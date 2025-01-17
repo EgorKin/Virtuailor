@@ -94,6 +94,7 @@ def create_vtable_struct(start_address, vtable_name, p_vtable_addr, offset):
 def do_logic(virtual_call_addr, register_vtable, offset):
     is_brac_assign = idc.GetOpnd(int(idc.GetRegValue("pc")), 1).find('[')
     base = idc.SegStart(int(idc.GetRegValue("pc")))
+    print("base:", hex(base))
     call_addr = int(virtual_call_addr) + base
     is_brac_call = idc.GetOpnd(call_addr, 0).find('[')
     is_brac = -1
@@ -106,7 +107,7 @@ def do_logic(virtual_call_addr, register_vtable, offset):
     vtable_name = get_fixed_name_for_object(p_vtable_addr, "vtable_")
     idaapi.set_name(p_vtable_addr, vtable_name, idaapi.SN_FORCE)
     try:
-        idc.add_cref(int(virtual_call_addr) +base, v_func_addr, idc.XREF_USER)
+        idc.add_cref(call_addr, v_func_addr, idc.XREF_USER)
     except:
         print("Logging - xref to function at address:", hex(v_func_addr), ", from:", hex(v_func_addr) )
     # first arg for error message only, use 0 image base
