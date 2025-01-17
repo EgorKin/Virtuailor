@@ -1,8 +1,9 @@
 virtual_call_addr,register_vtable,offset = str(<<<start_addr>>>),"<<<register_vtable>>>", <<<offset>>>
 
-#import idc
-#import idaapi
-#import idautils
+import idc
+import idaapi
+import idautils
+import traceback
 
 def make_func(ea):
     code_err = idc.MakeCode(ea)
@@ -20,14 +21,15 @@ def fix_arm_vtable(vfunc_addr):
 def get_fixed_name_for_object(address, prefix=""):
     v_func_name = idc.GetFunctionName(int(address))
     calc_func_name = int(address) - idc.SegStart(int(address))
-    v_func_name =  prefix + str(calc_func_name)
-    #if v_func_name[:4] == "sub_":
-    #    v_func_name =  prefix + str(calc_func_name)
-    #elif v_func_name == "":
-    #    v_func_name =  prefix + str(calc_func_name)
+    #v_func_name =  prefix + str(calc_func_name)
+    if v_func_name[:4] == "sub_":
+        v_func_name =  prefix + str(calc_func_name)
+    elif v_func_name == "":
+        v_func_name =  prefix + str(calc_func_name)
     return v_func_name
 
 def get_vtable_and_vfunc_addr(is_brac, register_vtable, offset):
+    print("get_vtable_and_vfunc_addr")
     if is_brac == -1:
         p_vtable_addr = idc.GetRegValue(register_vtable)
         pv_func_addr = p_vtable_addr + offset
@@ -73,6 +75,7 @@ def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset)
         vtable_func_value = idc.read_dbg_dword(p_vtable_addr + vtable_func_offset)  # Use dword for 32-bit
 
 def create_vtable_struct(start_address, vtable_name, p_vtable_addr, offset):
+    print("create_vtable_struct")
     struct_name = vtable_name + "_struct"
     struct_id = idc.add_struc(-1, struct_name, 0)
     if struct_id != idc.BADADDR:
@@ -93,6 +96,7 @@ def do_logic(virtual_call_addr, register_vtable, offset):
     if is_brac_assign != -1 and is_brac_call != -1:
         is_brac = 0
     p_vtable_addr, v_func_addr = get_vtable_and_vfunc_addr(is_brac, register_vtable, offset)
+    print("p_vtable_addr:", hex(p_vtable_addr), "v_func_addr:", hex(v_func_addr))
     v_func_name = get_fixed_name_for_object(v_func_addr, "vfunc_")
     idaapi.set_name(v_func_addr, v_func_name, idaapi.SN_FORCE)
     vtable_name = get_fixed_name_for_object(p_vtable_addr, "vtable_")
@@ -123,5 +127,7 @@ if offset == "*":
             offset = opnd2[place + 1: opnd2.find(']')]
 try:
     do_logic(virtual_call_addr, register_vtable, offset)
-except:
+except Exception as e:
+    print(e)
+    traceback.print_exc()
     print("Error! at BP address:", hex(idc.GetRegValue("pc")))
