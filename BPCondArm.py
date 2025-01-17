@@ -4,6 +4,8 @@ import idc
 import idaapi
 import idautils
 
+base = idaapi.get_imagebase()
+
 def make_func(ea):
     code_err = idc.MakeCode(ea)
     func_err= idc.MakeFunction(ea)
@@ -19,7 +21,7 @@ def fix_arm_vtable(vfunc_addr):
 
 def get_fixed_name_for_object(address, prefix=""):
     v_func_name = idc.GetFunctionName(int(address))
-    calc_func_name = int(address) - idc.SegStart(int(address))
+    calc_func_name = int(address) - base #idc.SegStart(int(address))
     #v_func_name =  prefix + str(calc_func_name)
     if v_func_name[:4] == "sub_":
         v_func_name =  prefix + str(calc_func_name)
@@ -93,7 +95,7 @@ def create_vtable_struct(start_address, vtable_name, p_vtable_addr, offset):
 
 def do_logic(virtual_call_addr, register_vtable, offset):
     is_brac_assign = idc.GetOpnd(int(idc.GetRegValue("pc")), 1).find('[')
-    base = idc.SegStart(int(idc.GetRegValue("pc")))
+    #base = idc.SegStart(int(idc.GetRegValue("pc")))
     print("base:", hex(base))
     call_addr = int(virtual_call_addr) + base
     is_brac_call = idc.GetOpnd(call_addr, 0).find('[')
