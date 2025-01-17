@@ -96,8 +96,9 @@ def create_vtable_struct(start_address, vtable_name, p_vtable_addr, offset):
 def do_logic(virtual_call_addr, register_vtable, offset):
     is_brac_assign = idc.GetOpnd(int(idc.GetRegValue("pc")), 1).find('[')
     #base = idc.SegStart(int(idc.GetRegValue("pc")))
-    print("base:", hex(base))
     call_addr = int(virtual_call_addr) + base
+    print("base:", hex(base))
+    print("call_addr:", hex(call_addr))
     is_brac_call = idc.GetOpnd(call_addr, 0).find('[')
     is_brac = -1
     if is_brac_assign != -1 and is_brac_call != -1:
