@@ -3,7 +3,6 @@ virtual_call_addr,register_vtable,offset = str(<<<start_addr>>>),"<<<register_vt
 import idc
 import idaapi
 import idautils
-import traceback
 
 def make_func(ea):
     code_err = idc.MakeCode(ea)
@@ -62,9 +61,11 @@ def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset)
             fix_arm_vtable(vtable_func_value)
         except:
             pass
+        print("65: vtable_func_value:", vtable_func_value)
         v_func_name = idc.GetFunctionName(vtable_func_value)
         if v_func_name == '':
             vtable_func_value = idc.read_dbg_dword(vtable_func_value)  # Use dword for 32-bit
+            print("69: vtable_func_value:", vtable_func_value)
             v_func_name = idc.GetFunctionName(vtable_func_value)
             if v_func_name == '':
                 print("Error in adding functions to struct, at BP address::", hex(start_address))
@@ -129,5 +130,6 @@ try:
     do_logic(virtual_call_addr, register_vtable, offset)
 except Exception as e:
     print(e)
+    import traceback
     traceback.print_exc()
     print("Error! at BP address:", hex(idc.GetRegValue("pc")))
