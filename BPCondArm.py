@@ -74,6 +74,8 @@ def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset)
         succ = idc.add_struc_member(struct_id, v_func_name, vtable_func_offset , idc.FF_DWRD, -1, 4)  # Use dword for 32-bit
         vtable_func_offset += 4  # Use 4 bytes for 32-bit
         vtable_func_value = idc.read_dbg_dword(p_vtable_addr + vtable_func_offset)  # Use dword for 32-bit
+        if vtable_func_value == 0 or vtable_func_value >> 24 == 0xff:
+            break
 
 def create_vtable_struct(start_address, vtable_name, p_vtable_addr, offset):
     print("create_vtable_struct")
