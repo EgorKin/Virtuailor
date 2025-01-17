@@ -113,7 +113,8 @@ def do_logic(virtual_call_addr, register_vtable, offset):
     vtable_name = get_fixed_name_for_object(p_vtable_addr, "vtable_")
     idaapi.set_name(p_vtable_addr, vtable_name, idaapi.SN_FORCE)
     try:
-        idc.add_cref(call_addr, v_func_addr, idc.XREF_USER)
+        succ = idc.add_cref(call_addr, v_func_addr, idc.XREF_USER)
+        print("add_cref:", succ)
     except:
         print("Logging - xref to function at address:", hex(v_func_addr), ", from:", hex(v_func_addr) )
     # first arg for error message only, use 0 image base
