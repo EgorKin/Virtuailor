@@ -21,12 +21,12 @@ def fix_arm_vtable(vfunc_addr):
 
 def get_fixed_name_for_object(address, prefix=""):
     v_func_name = idc.GetFunctionName(int(address))
-    calc_func_name = int(address) - base #idc.SegStart(int(address))
+    calc_func_name = hex(int(address) - base) #idc.SegStart(int(address))
     #v_func_name =  prefix + str(calc_func_name)
     if v_func_name[:4] == "sub_":
-        v_func_name =  prefix + str(calc_func_name)
+        v_func_name =  prefix + calc_func_name
     elif v_func_name == "":
-        v_func_name =  prefix + str(calc_func_name)
+        v_func_name =  prefix + calc_func_name
     return v_func_name
 
 def get_vtable_and_vfunc_addr(is_brac, register_vtable, offset):
@@ -72,8 +72,11 @@ def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset)
             if v_func_name == '':
                 print("Error in adding functions to struct, at BP address::", hex(start_address))
         v_func_name = get_fixed_name_for_object(int(vtable_func_value), "vfunc_")
-        idaapi.set_name(vtable_func_value, v_func_name, idaapi.SN_FORCE)
+        print("v_func_name:", v_func_name)
+        succ = idaapi.set_name(vtable_func_value, v_func_name, idaapi.SN_FORCE)
+        print("func set_name:",succ)
         succ = idc.add_struc_member(struct_id, v_func_name, vtable_func_offset , idc.FF_DWRD, -1, 4)  # Use dword for 32-bit
+        print("add_struc_member:",succ)
         vtable_func_offset += 4  # Use 4 bytes for 32-bit
         vtable_func_value = idc.read_dbg_dword(p_vtable_addr + vtable_func_offset)  # Use dword for 32-bit
         if vtable_func_value == 0 or vtable_func_value >> 24 == 0xff:
