@@ -1,3 +1,5 @@
+virtual_call_addr,register_vtable,offset = str(<<<start_addr>>>),"<<<register_vtable>>>", <<<offset>>>
+
 #import idc
 #import idaapi
 #import idautils
@@ -101,9 +103,6 @@ def do_logic(virtual_call_addr, register_vtable, offset):
         print("Logging - xref to function at address:", hex(v_func_addr), ", from:", hex(v_func_addr) )
     create_vtable_struct(int(virtual_call_addr), vtable_name, p_vtable_addr, offset)
 
-virtual_call_addr = str(<<<start_addr>>>)
-register_vtable = "<<<register_vtable>>>"
-offset = <<<offset>>>
 if offset == "*":
     opnd2 = idc.GetOpnd(virtual_call_addr, 1)
     reg_offset = 0
