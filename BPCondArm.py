@@ -66,6 +66,7 @@ def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset)
             pass
         print("65: vtable_func_value:", vtable_func_value)
         v_func_name = idc.GetFunctionName(vtable_func_value)
+        print("GetFunctionName:", v_func_name)
         if v_func_name == '':
             vtable_func_value = idc.read_dbg_dword(vtable_func_value)  # Use dword for 32-bit
             print("69: vtable_func_value:", vtable_func_value)
@@ -73,13 +74,13 @@ def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset)
             if v_func_name == '':
                 print("Error in adding functions to struct, at BP address::", hex(start_address))
         v_func_name = get_fixed_name_for_object(int(vtable_func_value), "vfunc_")
-        print("v_func_name:", v_func_name)
-        succ = idaapi.set_name(vtable_func_value, v_func_name, idaapi.SN_FORCE)
-        print("func set_name:",vtable_func_value, succ)
+        print("New v_func_name:", v_func_name)
+        #succ = idaapi.set_name(vtable_func_value, v_func_name, idaapi.SN_FORCE)
+        #print("func set_name:",vtable_func_value, succ)
         succ = idaapi.set_name(vtable_func_value-1, v_func_name, idaapi.SN_FORCE)
-        print("func set_name:",vtable_func_value-1,succ)
+        print("func set_name at -1:",vtable_func_value-1,succ)
         err = idc.add_struc_member(struct_id, v_func_name, vtable_func_offset , idc.FF_DWRD, -1, 4)  # Use dword for 32-bit
-        print("add_struc_member:",err==0)
+        # print("add_struc_member:",err==0)
         vtable_func_offset += 4  # Use 4 bytes for 32-bit
         vtable_func_value = idc.read_dbg_dword(p_vtable_addr + vtable_func_offset)  # Use dword for 32-bit
         if vtable_func_value == 0 or vtable_func_value >> 24 == 0xff:
@@ -103,7 +104,7 @@ def do_logic(virtual_call_addr, register_vtable, offset):
     is_brac_assign = idc.GetOpnd(int(idc.GetRegValue("pc")), 1).find('[')
     #base = idc.SegStart(int(idc.GetRegValue("pc")))
     call_addr = int(virtual_call_addr) + base
-    print("base:", hex(base))
+    #print("base:", hex(base))
     print("call_addr:", hex(call_addr))
     is_brac_call = idc.GetOpnd(call_addr, 0).find('[')
     is_brac = -1
@@ -118,7 +119,7 @@ def do_logic(virtual_call_addr, register_vtable, offset):
     vtable_name = get_fixed_name_for_object(p_vtable_addr, "vtable_")
     idaapi.set_name(p_vtable_addr, vtable_name, idaapi.SN_FORCE)
     try:
-        succ = idc.add_cref(call_addr, v_func_addr, idc.XREF_USER)
+        succ = idc.add_cref(call_addr, v_func_addr, idc.XREF_USER|idc.fl_CF) # blx register can be a far call
         print("add_cref",call_addr, v_func_addr, succ)
     except:
         print("Logging - xref to function at address:", hex(v_func_addr), ", from:", hex(v_func_addr) )
