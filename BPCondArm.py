@@ -1,4 +1,4 @@
-virtual_call_addr,register_vtable,offset = str(<<<start_addr>>>),"<<<register_vtable>>>", <<<offset>>>
+virtual_call_addr, bp_addr ,register_vtable,offset = str(<<<start_addr>>>), <<<bp_addr>>>,"<<<register_vtable>>>", <<<offset>>>
 
 import idc
 import idaapi
@@ -67,7 +67,7 @@ def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset)
             fix_arm_vtable(vtable_func_value)
         except:
             pass
-        print("65: vtable_func_value:", vtable_func_value)
+        print("65: vtable_func_value:", hex(vtable_func_value))
         v_func_name = idc.GetFunctionName(vtable_func_value)
         print("GetFunctionName:", v_func_name)
         if not v_func_name :
@@ -118,8 +118,8 @@ def do_logic(virtual_call_addr, register_vtable, offset):
     p_vtable_addr, v_func_addr = get_vtable_and_vfunc_addr(is_brac, register_vtable, offset)
     print("p_vtable_addr:", hex(p_vtable_addr), "v_func_addr:", hex(v_func_addr))
     # possibly redundant
-    v_func_name = get_fixed_name_for_object(v_func_addr, "vfunc_")
-    idaapi.set_name(v_func_addr, v_func_name, idaapi.SN_FORCE)
+    #v_func_name = get_fixed_name_for_object(v_func_addr, "vfunc_")
+    #idaapi.set_name(v_func_addr, v_func_name, idaapi.SN_FORCE)
     # needed
     vtable_name = get_fixed_name_for_object(p_vtable_addr, "vtable_")
     idaapi.set_name(p_vtable_addr, vtable_name, idaapi.SN_FORCE)
@@ -152,6 +152,9 @@ if offset == "*":
             offset = opnd2[place + 1: opnd2.find(']')]
 try:
     do_logic(virtual_call_addr, register_vtable, offset)
+    # disable after cond executed
+    print("Disabling BP at:", hex(bp_addr + base))
+    idaapi.enable_bpt(bp_addr + base, False)
 except Exception as e:
     print(e)
     import traceback

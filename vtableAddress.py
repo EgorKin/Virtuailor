@@ -168,7 +168,7 @@ def get_con2_var_or_num(i_cnt, cur_addr):
     return "", 0, cur_addr
 
 
-def get_bp_condition(start_addr, register_vtable, offset):
+def get_bp_condition(start_addr, register_vtable, offset, bp_address):
     arch, is_64 = get_processor_architecture()
     file_name = "BPCond.py"
     if arch == "Intel":
@@ -188,6 +188,7 @@ def get_bp_condition(start_addr, register_vtable, offset):
         bp_cond_text = bp_cond_text.replace("<<<start_addr>>>", str(start_addr))
         bp_cond_text = bp_cond_text.replace("<<<register_vtable>>>", register_vtable)
         bp_cond_text = bp_cond_text.replace("<<<offset>>>", offset)
+        bp_cond_text = bp_cond_text.replace("<<<bp_addr>>>", bp_address)
         return bp_cond_text
     return "# Error in BP condition"
 
@@ -233,5 +234,5 @@ def write_vtable2file(start_addr):
         if set_bp:
             # start_addr = start_addr - idc.SegStart(start_addr)
             if reg_vtable in REGISTERS:
-                cond = get_bp_condition(start_addr, reg_vtable, offset)
+                cond = get_bp_condition(start_addr, reg_vtable, offset, bp_address)
     return cond, bp_address
