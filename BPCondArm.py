@@ -20,15 +20,15 @@ def fix_arm_vtable(vfunc_addr):
             #print "Failed to create function, at". hex(vfunc_addr)
 
 def get_fixed_name_for_object(address, prefix=""):
-    v_func_name = idc.GetFunctionName(int(address))
-    print("v_func_name @", address, v_func_name)
+    name = idc.GetFunctionName(int(address))
+    print(prefix+" name @", address, name)
     calc_func_name = hex(int(address) - base)[2:] #idc.SegStart(int(address))
     #v_func_name =  prefix + str(calc_func_name)
-    if v_func_name[:4] == "sub_":
-        v_func_name =  prefix + calc_func_name
-    elif v_func_name == "":
-        v_func_name =  prefix + calc_func_name
-    return v_func_name
+    if name[:4] == "sub_":
+        name =  prefix + calc_func_name
+    elif name == "":
+        name =  prefix + calc_func_name
+    return name
 
 def get_vtable_and_vfunc_addr(is_brac, register_vtable, offset):
     print("get_vtable_and_vfunc_addr")
@@ -36,11 +36,13 @@ def get_vtable_and_vfunc_addr(is_brac, register_vtable, offset):
         p_vtable_addr = idc.GetRegValue(register_vtable)
         pv_func_addr = p_vtable_addr + offset
         v_func_addr = idc.read_dbg_dword(pv_func_addr)  # Use dword for 32-bit
+        v_func_addr = v_func_addr - 1 # thumb's
         return p_vtable_addr, v_func_addr
     else:
         p_vtable_addr = idc.read_dbg_dword(idc.GetRegValue(register_vtable))  # Use dword for 32-bit
         pv_func_addr = p_vtable_addr + offset
         v_func_addr = idc.read_dbg_dword(pv_func_addr)  # Use dword for 32-bit
+        v_func_addr = v_func_addr - 1 # thumb's
         return p_vtable_addr, v_func_addr
 
 def add_comment_to_struct_members(struct_id, vtable_func_offset, start_address):
@@ -59,6 +61,7 @@ def add_comment_to_struct_members(struct_id, vtable_func_offset, start_address):
 def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset):
     vtable_func_offset = 0
     vtable_func_value = idc.read_dbg_dword(p_vtable_addr)  # Use dword for 32-bit
+    vtable_func_value -= 1 # thumb's 
     while vtable_func_value != 0:
         try:
             fix_arm_vtable(vtable_func_value)
@@ -79,7 +82,7 @@ def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset)
         #succ = idaapi.set_name(vtable_func_value, v_func_name, idaapi.SN_FORCE)
         #print("func set_name:",vtable_func_value, succ)
         succ = idaapi.set_name(vtable_func_value, v_func_name, idaapi.SN_FORCE)
-        print("set func name" + v_func_name + " at " + str(vtable_func_value),succ)
+        print("set func name " + v_func_name + " at " + hex(vtable_func_value),succ)
         err = idc.add_struc_member(struct_id, v_func_name, vtable_func_offset , idc.FF_DWRD, -1, 4)  # Use dword for 32-bit
         # print("add_struc_member:",err==0)
         vtable_func_offset += 4  # Use 4 bytes for 32-bit
@@ -122,11 +125,12 @@ def do_logic(virtual_call_addr, register_vtable, offset):
     idaapi.set_name(p_vtable_addr, vtable_name, idaapi.SN_FORCE)
     try:
         succ = idc.add_cref(call_addr, v_func_addr, idc.XREF_USER|idc.fl_CF) # blx register can be a far call
-        print("add_cref",call_addr, v_func_addr, succ)
+        print("add_cref",hex(call_addr), hex(v_func_addr), succ)
     except:
         print("Logging - xref to function at address:", hex(v_func_addr), ", from:", hex(v_func_addr) )
     # first arg for error message only, use 0 image base
     create_vtable_struct(int(virtual_call_addr), vtable_name, p_vtable_addr, offset)
+    print("do_logic end")
 
 if offset == "*":
     opnd2 = idc.GetOpnd(virtual_call_addr, 1)
