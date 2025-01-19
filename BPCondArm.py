@@ -22,13 +22,15 @@ def fix_arm_vtable(vfunc_addr):
 def get_fixed_name_for_object(address, prefix=""):
     name = idc.GetFunctionName(int(address))
     print(prefix+" name @", address, name)
-    calc_func_name = hex(int(address) - base)[2:] #idc.SegStart(int(address))
+    calc_func_name = hex(int(address) - base)[2:-1] #idc.SegStart(int(address))
+    if calc_func_name[-1] == "L":
+        calc_func_name = calc_func_name[:-1]
     #v_func_name =  prefix + str(calc_func_name)
     if name[:4] == "sub_":
         name =  prefix + calc_func_name
     elif name == "":
         name =  prefix + calc_func_name
-    return name
+    return name # nullsub_
 
 def get_vtable_and_vfunc_addr(is_brac, register_vtable, offset):
     print("get_vtable_and_vfunc_addr")
