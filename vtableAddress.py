@@ -188,7 +188,7 @@ def get_bp_condition(start_addr, register_vtable, offset, bp_address):
         bp_cond_text = bp_cond_text.replace("<<<start_addr>>>", str(start_addr))
         bp_cond_text = bp_cond_text.replace("<<<register_vtable>>>", register_vtable)
         bp_cond_text = bp_cond_text.replace("<<<offset>>>", offset)
-        bp_cond_text = bp_cond_text.replace("<<<bp_addr>>>", bp_address)
+        bp_cond_text = bp_cond_text.replace("<<<bp_addr>>>", str(bp_address))
         return bp_cond_text
     return "# Error in BP condition"
 
