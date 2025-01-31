@@ -150,15 +150,26 @@ def get_con2_var_or_num_intel(func_reg, call_addr):
     return "out of the function", "-1", cur_addr
 
 
-def parse_arm_dereference(opnd2):
-    sep_idx = opnd2.find(",")
+def parse_arm_dereference(opnd):
+    """
+    [R2,#0xC] -> R2, "0xC"
+    [R2] -> R2, "0"
+    other format -> None, None
+    """
+    if opnd[0] != "[" or opnd[-1] != "]":
+        return None, None
+    sep_idx = opnd.find(",")
 
     if sep_idx != -1:
-        register = opnd2[opnd2.find("[") + 1 : opnd2.find(",")]
-        offset = opnd2[opnd2.find(",") + 2 : opnd2.find("]")]
+        register = opnd[1:sep_idx]
+        offset = opnd[sep_idx + 2 : -1]
+        if opnd[sep_idx + 1] != "#":  # offset not constant (GOT call): [R1,R3]
+            return None, None
     else:
-        register = opnd2[opnd2.find("[") + 1 : opnd2.find("]")]
+        register = opnd[1:-1]
         offset = "0"
+        # if register not in REGS:  # not sure if this is possible # checked at finally
+        #    return None, None
     return register, offset
 
 
@@ -186,6 +197,8 @@ def get_con2_var_or_num_arm(func_reg, call_addr):
             if mnem.startswith("LDR") and idc.GetOpnd(cur_addr, 0) == func_reg:
                 opnd2 = idc.GetOpnd(cur_addr, 1)
                 register, offset = parse_arm_dereference(opnd2)
+                if register is None:
+                    return None, None, None
                 if (
                     register == "SP"
                 ):  # load virtual func from stack, lookup happens before
@@ -194,13 +207,16 @@ def get_con2_var_or_num_arm(func_reg, call_addr):
                     return register, offset, cur_addr
             elif mnem.startswith("MOV") and idc.GetOpnd(cur_addr, 0) == func_reg:
                 func_reg = idc.GetOpnd(cur_addr, 1)
+                if func_reg not in REGS:
+                    return None, None, None
         else:
             if mnem.startswith("STR") and idc.GetOpnd(cur_addr, 1) == tmp_stack_addr:
                 func_reg = idc.GetOpnd(cur_addr, 0)
                 tmp_stack_addr = None
 
         cur_addr = idc.PrevHead(cur_addr)
-    return "out of the function", "-1", cur_addr
+    return None, None, None
+    # return "out of the function", "-1", cur_addr
 
 
 # TODO: fix for load from memory
@@ -229,6 +245,8 @@ def write_vtable2file(start_addr, raw_opnd):
     # raw_opnd = idc.GetOpnd(start_addr, 0)
     reg = raw_opnd
     reg_vtable, offset, bp_address = get_con2_var_or_num(reg, start_addr)
+    if not reg_vtable:
+        return "", -1
 
     set_bp = True
     cond = ""
