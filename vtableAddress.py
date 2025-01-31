@@ -39,15 +39,15 @@ def get_processor_architecture():
         return "Error", False
 
 
-def get_call_instruction(arch, is_64):
+def _get_call_instruction(arch, is_64):
     return CALL_INSTRUCTION[arch][is_64]
 
 
-def get_registers(arch, is_64):
+def _get_registers(arch, is_64):
     return REGISTERS[arch][is_64]
 
 
-def get_arch_dct(arch, is_64):
+def _get_arch_dct(arch, is_64):
     # arch, is_64 = get_processor_architecture()
     if arch != "Error" or (arch == "ARM" and not is_64):
         dct_arch = {}
@@ -69,10 +69,10 @@ def get_arch_dct(arch, is_64):
 
 arch, is_64 = get_processor_architecture()
 assert arch != "Error"
-call_instr = get_call_instruction(arch, is_64)
-registers = get_registers(arch, is_64)
-arch_dct = get_arch_dct(arch, is_64)
-assert arch_dct != -1
+CALL_INSTR = _get_call_instruction(arch, is_64)
+REGS = _get_registers(arch, is_64)
+ARCH_DICT = _get_arch_dct(arch, is_64)
+assert ARCH_DICT != -1
 
 
 def read_bp_cond_text():
@@ -116,14 +116,15 @@ def get_con2_var_or_num_intel(func_reg, call_addr):
     while cur_addr >= start_addr:
         mnem = idc.GetMnem(cur_addr)
         if (
-            mnem.startswith(arch_dct["opcode"]) and idc.GetOpnd(cur_addr, 0) == func_reg
+            mnem.startswith(ARCH_DICT["opcode"])
+            and idc.GetOpnd(cur_addr, 0) == func_reg
         ):  # TODO lea ?
             opnd2 = idc.GetOpnd(cur_addr, 1)
-            place = opnd2.find(arch_dct["separator"])
+            place = opnd2.find(ARCH_DICT["separator"])
             if place != -1:  # if the function is not the first in the vtable
                 register = opnd2[opnd2.find("[") + 1 : place]
                 if opnd2.find("*") == -1:
-                    offset = opnd2[place + arch_dct["val_offset"] : opnd2.find("]")]
+                    offset = opnd2[place + ARCH_DICT["val_offset"] : opnd2.find("]")]
                 else:
                     offset = "*"
                 return register, offset, cur_addr
@@ -235,7 +236,7 @@ def write_vtable2file(start_addr, raw_opnd):
     try:
         # TODO If a structure was already assigned to the BP (not by Virtualor), before running the code the code will\
         # assume it was examined by the user, the BP will not be set
-        plus_indx = raw_opnd.find(arch_dct["separator"])
+        plus_indx = raw_opnd.find(ARCH_DICT["separator"])
         if plus_indx != -1:
             call_offset = raw_opnd[plus_indx + 1 : raw_opnd.find("]")]
             # if the offset is in hex
@@ -251,6 +252,6 @@ def write_vtable2file(start_addr, raw_opnd):
     finally:
         if set_bp:
             # start_addr = start_addr - idc.SegStart(start_addr)
-            if reg_vtable in registers:
+            if reg_vtable in REGS:
                 cond = get_bp_condition(start_addr, reg_vtable, offset, bp_address)
     return cond, bp_address

@@ -29,8 +29,8 @@ def get_xref_code_to_func(func_addr):
 
 
 def add_bp_to_virtual_calls(cur_addr, end):
-    call_instr = vtableAddress.get_call_instruction()
-    registers = vtableAddress.get_registers()
+    call_instr = vtableAddress.CALL_INSTR
+    registers = vtableAddress.REGS
     while cur_addr < end:
         if cur_addr == idc.BADADDR:
             break
