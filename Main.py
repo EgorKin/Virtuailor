@@ -36,12 +36,14 @@ def add_bp_to_virtual_calls(cur_addr, end):
             break
         elif idc.GetMnem(cur_addr) == call_instr:
             operand = idc.GetOpnd(cur_addr, 0)
-            print("Virtual Call" + call_instr + " " + operand + " at: " + hex(cur_addr))
+            print(
+                "Virtual Call " + call_instr + " " + operand + " at: " + hex(cur_addr)
+            )
             # print("reg0", idc.GetOpnd(cur_addr, 0))
-            # if True in [
-            #    idc.GetOpnd(cur_addr, 0).find(reg) != -1 for reg in registers
-            # ]: # call involving a register, but we can't handle operations on the register
-            if idc.GetOpnd(cur_addr, 0) in registers:  # ensure a register only call
+            if True in [
+                idc.GetOpnd(cur_addr, 0).find(reg) != -1 for reg in registers
+            ]:  # call involving a register, but we can't handle operations on the register
+                # if idc.GetOpnd(cur_addr, 0) in registers:  # ensure a register only call
                 cond, bp_address = vtableAddress.write_vtable2file(cur_addr, operand)
                 if cond != "":
                     bp_vtable = AddBP.add(bp_address, cond)
