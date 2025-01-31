@@ -1,4 +1,5 @@
 from __future__ import print_function
+from operator import call
 import idc
 import idautils
 import idaapi
@@ -8,11 +9,9 @@ idaapi.require("vtableAddress")
 idaapi.require("GUI")
 
 # for LSP only
-# import AddBP
-# import vtableAddress
-# import GUI
-
-from vtableAddress import REGISTERS
+import AddBP
+import vtableAddress
+import GUI
 
 
 def get_all_functions():
@@ -32,20 +31,20 @@ def get_xref_code_to_func(func_addr):
 
 
 def add_bp_to_virtual_calls(cur_addr, end):
+    call_instr = vtableAddress.get_call_instruction()
+    registers = vtableAddress.get_registers()
     while cur_addr < end:
         if cur_addr == idc.BADADDR:
             break
-        elif (
-            idc.GetMnem(cur_addr) == "call"
-            or idc.GetMnem(cur_addr) == "BLR"
-            or idc.GetMnem(cur_addr) == "BLX"
-        ):
-            print("Virtual Call at: ", hex(cur_addr))
-            print("reg0", idc.GetOpnd(cur_addr, 0))
-            if True in [
-                idc.GetOpnd(cur_addr, 0).find(reg) != -1 for reg in REGISTERS
-            ]:  # idc.GetOpnd(cur_addr, 0) in REGISTERS:
-                cond, bp_address = vtableAddress.write_vtable2file(cur_addr)
+        elif idc.GetMnem(cur_addr) == call_instr:
+            operand = idc.GetOpnd(cur_addr, 0)
+            print("Virtual Call" + call_instr + " " + operand + " at: " + hex(cur_addr))
+            # print("reg0", idc.GetOpnd(cur_addr, 0))
+            # if True in [
+            #    idc.GetOpnd(cur_addr, 0).find(reg) != -1 for reg in registers
+            # ]: # call involving a register, but we can't handle operations on the register
+            if idc.GetOpnd(cur_addr, 0) in registers:  # ensure a register only call
+                cond, bp_address = vtableAddress.write_vtable2file(cur_addr, operand)
                 if cond != "":
                     bp_vtable = AddBP.add(bp_address, cond)
                     print("BP added at: ", hex(bp_address))

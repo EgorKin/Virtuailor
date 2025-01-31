@@ -8,69 +8,22 @@ import sys, os
 
 idaapi.require("AddBP")
 
-# ARM
-REGISTERS = [
-    "R0",
-    "R1",
-    "R2",
-    "R3",
-    "R4",
-    "R5",
-    "R6",
-    "R7",
-    "R8",
-    "R9",
-    "R10",
-    "R11",
-    "R12",
-    "R13",
-    "R14"
-    # x86, x64
-    "eax",
-    "ebx",
-    "ecx",
-    "edx",
-    "rax",
-    "rbx",
-    "rcx",
-    "rdx",
-    "r9",
-    "r10",
-    "r8",
-    # Aarch64
-    "X0",
-    "X1",
-    "X2",
-    "X3",
-    "X4",
-    "X5",
-    "X6",
-    "X7",
-    "X8",
-    "X9",
-    "X10",
-    "X11",
-    "X12",
-    "X13",
-    "X14",
-    "X15",
-    "X16",
-    "X17",
-    "X18",
-    "X19",
-    "X20",
-    "X21",
-    "X22",
-    "X23",
-    "X24",
-    "X25",
-    "X26",
-    "X27",
-    "X28",
-    "X29",
-    "X30",
-    "X31",
-]
+# fmt: off
+REGISTERS = {
+"ARM": {
+    False:["R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10", "R11", "R12", "R13", "R14"],
+    True:["X0", "X1", "X2", "X3", "X4", "X5", "X6", "X7", "X8", "X9", "X10", "X11", "X12", "X13", "X14", "X15", "X16", "X17", "X18", "X19", "X20", "X21", "X22", "X23", "X24", "X25", "X26", "X27", "X28", "X29", "X30", "X31"]
+},
+"Intel": {
+    False:["eax", "ebx", "ecx", "edx"], 
+    True:["rax", "rbx", "rcx", "rdx", "r9", "r10", "r8"]},
+}
+
+CALL_INSTRUCTION = {
+    "ARM": {False: "BLX", True: "BLR"},
+    "Intel": {False: "call", True:"call"}
+}
+# fmt: on
 
 
 def get_processor_architecture():
@@ -86,19 +39,16 @@ def get_processor_architecture():
         return "Error", False
 
 
-def get_local_var_value_64(loc_var_name):
-    frame = ida_frame.get_frame(idc.here())
-    loc_var = ida_struct.get_member_by_name(frame, loc_var_name)
-    loc_var_start = loc_var.soff
-    loc_var_ea = loc_var_start + idc.GetRegValue("RSP")
-    loc_var_value = idc.read_dbg_qword(
-        loc_var_ea
-    )  # in case the variable is 32bit, just use get_wide_dword() instead
-    return loc_var_value
+def get_call_instruction(arch, is_64):
+    return CALL_INSTRUCTION[arch][is_64]
 
 
-def get_arch_dct():
-    arch, is_64 = get_processor_architecture()
+def get_registers(arch, is_64):
+    return REGISTERS[arch][is_64]
+
+
+def get_arch_dct(arch, is_64):
+    # arch, is_64 = get_processor_architecture()
     if arch != "Error" or (arch == "ARM" and not is_64):
         dct_arch = {}
         if arch == "ARM":
@@ -117,59 +67,15 @@ def get_arch_dct():
         return -1
 
 
-def get_con2_var_or_num(i_cnt, cur_addr):
-    """
-    :param i_cnt: the register of the virtual call
-    :param cur_addr: the current address in the memory
-    :return: "success" string and the address of the vtable's location. if it fails it sends the reason and -1
-    """
-    start_addr = idc.GetFunctionAttr(cur_addr, idc.FUNCATTR_START)
-    virt_call_addr = cur_addr
-    cur_addr = idc.PrevHead(cur_addr)
-    dct_arch = get_arch_dct()
-    if dct_arch == -1:
-        return "Wrong Architechture", "-1", cur_addr
-
-    while cur_addr >= start_addr:
-        if (
-            idc.GetMnem(cur_addr)[:3] == dct_arch["opcode"]
-            and idc.GetOpnd(cur_addr, 0) == i_cnt
-        ):  # TODO lea ?
-            opnd2 = idc.GetOpnd(cur_addr, 1)
-            place = opnd2.find(dct_arch["separator"])
-            if place != -1:  # if the function is not the first in the vtable
-                register = opnd2[opnd2.find("[") + 1 : place]
-                if opnd2.find("*") == -1:
-                    offset = opnd2[place + dct_arch["val_offset"] : opnd2.find("]")]
-                else:
-                    offset = "*"
-                return register, offset, cur_addr
-            else:
-                offset = "0"
-                if opnd2.find("]") != -1:
-                    register = opnd2[opnd2.find("[") + 1 : opnd2.find("]")]
-                else:
-                    register = opnd2
-                return register, offset, cur_addr
-        elif idc.GetMnem(cur_addr)[:4] == "call":
-            intr_func_name = idc.GetOpnd(cur_addr, 0)
-            # In case the code has CFG -> ignores the function call before the virtual calls
-            if "guard_check_icall_fptr" not in intr_func_name:
-                if "nullsub" not in intr_func_name:
-                    # intr_func_name = idc.Demangle(intr_func_name, idc.GetLongPrm(idc.INF_SHORT_DN))
-                    print(
-                        "Warning! At address 0x%08x: The vtable assignment might be in another function (Maybe %s),"
-                        " could not place BP." % (virt_call_addr, intr_func_name)
-                    )
-                cur_addr = start_addr
-        cur_addr = idc.PrevHead(cur_addr)
-    return "out of the function", "-1", cur_addr
-
-    return "", 0, cur_addr
+arch, is_64 = get_processor_architecture()
+assert arch != "Error"
+call_instr = get_call_instruction(arch, is_64)
+registers = get_registers(arch, is_64)
+arch_dct = get_arch_dct(arch, is_64)
+assert arch_dct != -1
 
 
-def get_bp_condition(start_addr, register_vtable, offset, bp_address):
-    arch, is_64 = get_processor_architecture()
+def read_bp_cond_text():
     file_name = "BPCond.py"
     if arch == "Intel":
         if is_64:
@@ -185,38 +91,150 @@ def get_bp_condition(start_addr, register_vtable, offset, bp_address):
     if arch != "Error" or (arch == "ARM" and not is_64):
         with open(condition_file, "rb") as f1:
             bp_cond_text = f1.read()
-        bp_cond_text = bp_cond_text.replace("<<<start_addr>>>", str(start_addr))
-        bp_cond_text = bp_cond_text.replace("<<<register_vtable>>>", register_vtable)
-        bp_cond_text = bp_cond_text.replace("<<<offset>>>", offset)
-        bp_cond_text = bp_cond_text.replace("<<<bp_addr>>>", str(bp_address))
-        return bp_cond_text
-    return "# Error in BP condition"
+            return bp_cond_text
+    return ""
 
 
-def write_vtable2file(start_addr):
+BP_COND_TEXT = read_bp_cond_text()
+assert BP_COND_TEXT != ""
+
+
+def get_local_var_value_64(loc_var_name):
+    frame = ida_frame.get_frame(idc.here())
+    loc_var = ida_struct.get_member_by_name(frame, loc_var_name)
+    loc_var_start = loc_var.soff
+    loc_var_ea = loc_var_start + idc.GetRegValue("RSP")
+    loc_var_value = idc.read_dbg_qword(
+        loc_var_ea
+    )  # in case the variable is 32bit, just use get_wide_dword() instead
+    return loc_var_value
+
+
+def get_con2_var_or_num_intel(func_reg, call_addr):
+    start_addr = idc.GetFunctionAttr(call_addr, idc.FUNCATTR_START)
+    cur_addr = idc.PrevHead(call_addr)
+    while cur_addr >= start_addr:
+        mnem = idc.GetMnem(cur_addr)
+        if (
+            mnem.startswith(arch_dct["opcode"]) and idc.GetOpnd(cur_addr, 0) == func_reg
+        ):  # TODO lea ?
+            opnd2 = idc.GetOpnd(cur_addr, 1)
+            place = opnd2.find(arch_dct["separator"])
+            if place != -1:  # if the function is not the first in the vtable
+                register = opnd2[opnd2.find("[") + 1 : place]
+                if opnd2.find("*") == -1:
+                    offset = opnd2[place + arch_dct["val_offset"] : opnd2.find("]")]
+                else:
+                    offset = "*"
+                return register, offset, cur_addr
+            else:
+                offset = "0"
+                if opnd2.find("]") != -1:
+                    register = opnd2[opnd2.find("[") + 1 : opnd2.find("]")]
+                else:
+                    register = opnd2
+                return register, offset, cur_addr
+        elif mnem.startswith("call"):
+            intr_func_name = idc.GetOpnd(cur_addr, 0)
+            # In case the code has CFG -> ignores the function call before the virtual calls
+            if "guard_check_icall_fptr" not in intr_func_name:
+                if "nullsub" not in intr_func_name:
+                    # intr_func_name = idc.Demangle(intr_func_name, idc.GetLongPrm(idc.INF_SHORT_DN))
+                    print(
+                        "Warning! At address 0x%08x: The vtable assignment might be in another function (Maybe %s),"
+                        " could not place BP." % (call_addr, intr_func_name)
+                    )
+                cur_addr = start_addr
+        cur_addr = idc.PrevHead(cur_addr)
+    return "out of the function", "-1", cur_addr
+
+
+def parse_arm_dereference(opnd2):
+    sep_idx = opnd2.find(",")
+
+    if sep_idx != -1:
+        register = opnd2[opnd2.find("[") + 1 : opnd2.find(",")]
+        offset = opnd2[opnd2.find(",") + 2 : opnd2.find("]")]
+    else:
+        register = opnd2[opnd2.find("[") + 1 : opnd2.find("]")]
+        offset = "0"
+    return register, offset
+
+
+def get_con2_var_or_num_arm(func_reg, call_addr):
+    """
+    Also handle cases like this:
+    .text:0020FE3C                 LDR             R2, [R2,#0xC] ; load virtual func from vtable (target)
+    .text:0020FE3E                 LDR.W           R12, [SP,#0x98+var_34]
+    .text:0020FE42                 LDR.W           LR, [SP,#0x98+var_48]
+    .text:0020FE46                 STR             R0, [SP,#0x98+var_7C]
+    .text:0020FE48                 MOV             R0, R1
+    .text:0020FE4A                 MOV             R1, LR
+    .text:0020FE4C                 STR             R2, [SP,#0x98+var_80] ; store virtual func to stack
+    .text:0020FE4E                 MOV             R2, R12
+    .text:0020FE50                 LDR.W           R12, [SP,#0x98+var_80] ; load virtual func from stack
+    .text:0020FE54                 STR             R3, [SP,#0x98+var_84]
+    .text:0020FE56                 BLX             R12
+    """
+    start_addr = idc.GetFunctionAttr(call_addr, idc.FUNCATTR_START)
+    cur_addr = idc.PrevHead(call_addr)
+    tmp_stack_addr = None
+    while cur_addr >= start_addr:
+        mnem = idc.GetMnem(cur_addr)
+        if not tmp_stack_addr:
+            if mnem.startswith("LDR") and idc.GetOpnd(cur_addr, 0) == func_reg:
+                opnd2 = idc.GetOpnd(cur_addr, 1)
+                register, offset = parse_arm_dereference(opnd2)
+                if (
+                    register == "SP"
+                ):  # load virtual func from stack, lookup happens before
+                    tmp_stack_addr = opnd2
+                else:
+                    return register, offset, cur_addr
+            elif mnem.startswith("MOV") and idc.GetOpnd(cur_addr, 0) == func_reg:
+                func_reg = idc.GetOpnd(cur_addr, 1)
+        else:
+            if mnem.startswith("STR") and idc.GetOpnd(cur_addr, 1) == tmp_stack_addr:
+                func_reg = idc.GetOpnd(cur_addr, 0)
+                tmp_stack_addr = None
+
+        cur_addr = idc.PrevHead(cur_addr)
+    return "out of the function", "-1", cur_addr
+
+
+# TODO: fix for load from memory
+def get_con2_var_or_num(call_reg, call_addr):
+    if arch == "Intel":
+        return get_con2_var_or_num_intel(call_reg, call_addr)
+    else:
+        return get_con2_var_or_num_arm(call_reg, call_addr)
+
+
+def get_bp_condition(start_addr, register_vtable, offset, bp_address):
+
+    return (
+        BP_COND_TEXT.replace("<<<start_addr>>>", str(start_addr))
+        .replace("<<<register_vtable>>>", register_vtable)
+        .replace("<<<offset>>>", offset)
+        .replace("<<<bp_addr>>>", str(bp_address))
+    )
+
+
+def write_vtable2file(start_addr, raw_opnd):
     """
      :param start_addr: The start address of the virtual call
     :return: The break point condition and the break point address
     """
-    raw_opnd = idc.GetOpnd(start_addr, 0)
-    if raw_opnd in REGISTERS:
-        reg = raw_opnd
-    else:
-        for reg in REGISTERS:
-            if raw_opnd.find(reg) != -1:
-                break
-    opnd = get_con2_var_or_num(reg, start_addr)
+    # raw_opnd = idc.GetOpnd(start_addr, 0)
+    reg = raw_opnd
+    reg_vtable, offset, bp_address = get_con2_var_or_num(reg, start_addr)
 
-    reg_vtable = opnd[0]
-    offset = opnd[1]
-    bp_address = opnd[2]
     set_bp = True
     cond = ""
     # TODO check the get_con2 return variables!!@
     try:
         # TODO If a structure was already assigned to the BP (not by Virtualor), before running the code the code will\
         # assume it was examined by the user, the BP will not be set
-        arch_dct = get_arch_dct()
         plus_indx = raw_opnd.find(arch_dct["separator"])
         if plus_indx != -1:
             call_offset = raw_opnd[plus_indx + 1 : raw_opnd.find("]")]
@@ -233,6 +251,6 @@ def write_vtable2file(start_addr):
     finally:
         if set_bp:
             # start_addr = start_addr - idc.SegStart(start_addr)
-            if reg_vtable in REGISTERS:
+            if reg_vtable in registers:
                 cond = get_bp_condition(start_addr, reg_vtable, offset, bp_address)
     return cond, bp_address

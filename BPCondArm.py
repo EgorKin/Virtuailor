@@ -134,24 +134,25 @@ def do_logic(virtual_call_addr, register_vtable, offset):
     create_vtable_struct(int(virtual_call_addr), vtable_name, p_vtable_addr, offset)
     print("do_logic end")
 
-if offset == "*":
-    opnd2 = idc.GetOpnd(virtual_call_addr, 1)
-    reg_offset = 0
-    place = opnd2.find('+')
-    if place != -1:
-        sep = opnd2.find('*')
-        if sep != -1:
-            reg_offset = idc.GetRegValue(opnd2[place + 1: sep])
-        register = opnd2[opnd2.find('[') + 1: place]
-        if reg_offset:
-            offset = opnd2[sep + 1: opnd2.find(']')]
-            if offset.find('0x') != -1:
-                int_offset = int(offset[offset.find('0x') +2:], 16)
-            else:
-                int_offset = int(offset)
-            offset = int_offset * reg_offset
-        else:
-            offset = opnd2[place + 1: opnd2.find(']')]
+# not used by arm
+#if offset == "*":
+#    opnd2 = idc.GetOpnd(virtual_call_addr, 1)
+#    reg_offset = 0
+#    place = opnd2.find('+')
+#    if place != -1:
+#        sep = opnd2.find('*')
+#        if sep != -1:
+#            reg_offset = idc.GetRegValue(opnd2[place + 1: sep])
+#        register = opnd2[opnd2.find('[') + 1: place]
+#        if reg_offset:
+#            offset = opnd2[sep + 1: opnd2.find(']')]
+#            if offset.find('0x') != -1:
+#                int_offset = int(offset[offset.find('0x') +2:], 16)
+#            else:
+#                int_offset = int(offset)
+#            offset = int_offset * reg_offset
+#        else:
+#            offset = opnd2[place + 1: opnd2.find(']')]
 try:
     do_logic(virtual_call_addr, register_vtable, offset)
     # disable after cond executed
