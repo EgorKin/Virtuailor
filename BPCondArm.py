@@ -1,4 +1,4 @@
-virtual_call_addr, bp_addr ,register_vtable,offset = str(<<<start_addr>>>), <<<bp_addr>>>,"<<<register_vtable>>>", <<<offset>>>
+virtual_call_addr, bp_addr ,register_vtable,offset = <<<start_addr>>>, <<<bp_addr>>>,"<<<register_vtable>>>", <<<offset>>>
 
 import idc
 import idaapi
@@ -34,18 +34,15 @@ def get_fixed_name_for_object(address, prefix=""):
 
 def get_vtable_and_vfunc_addr(is_brac, register_vtable, offset):
     #print("get_vtable_and_vfunc_addr")
-    if is_brac == -1:
+    if is_brac == -1: # always
         p_vtable_addr = idc.GetRegValue(register_vtable)
-        pv_func_addr = p_vtable_addr + offset
-        v_func_addr = idc.read_dbg_dword(pv_func_addr)  # Use dword for 32-bit
-        v_func_addr = v_func_addr - 1 # thumb's
-        return p_vtable_addr, v_func_addr
     else:
         p_vtable_addr = idc.read_dbg_dword(idc.GetRegValue(register_vtable))  # Use dword for 32-bit
-        pv_func_addr = p_vtable_addr + offset
-        v_func_addr = idc.read_dbg_dword(pv_func_addr)  # Use dword for 32-bit
-        v_func_addr = v_func_addr - 1 # thumb's
-        return p_vtable_addr, v_func_addr
+
+    pv_func_addr = p_vtable_addr + offset
+    v_func_addr = idc.read_dbg_dword(pv_func_addr)  # Use dword for 32-bit
+    v_func_addr = v_func_addr - 1 # thumb's
+    return p_vtable_addr, v_func_addr
 
 def add_comment_to_struct_members(struct_id, vtable_func_offset, start_address):
     cur_cmt = idc.GetMemberComment(struct_id, vtable_func_offset, 1)
@@ -73,7 +70,9 @@ def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset)
         v_func_name = idc.GetFunctionName(vtable_func_value)
         #print("GetFunctionName:", v_func_name)
         if not v_func_name :
-            print("GetFunctionName Error from", vtable_func_value , v_func_name)
+            print("GetFunctionName Error with", vtable_func_value)
+            print("vtable_addr", hex(p_vtable_addr))
+            print("offset", offset)
         #    vtable_func_value = idc.read_dbg_dword(vtable_func_value)  # Use dword for 32-bit
         #    print("69: vtable_func_value:", vtable_func_value)
         #    v_func_name = idc.GetFunctionName(vtable_func_value)
@@ -108,15 +107,15 @@ def create_vtable_struct(start_address, vtable_name, p_vtable_addr, offset):
             print("Failed to create struct: " +  struct_name)
 
 def do_logic(virtual_call_addr, register_vtable, offset):
-    is_brac_assign = idc.GetOpnd(int(idc.GetRegValue("pc")), 1).find('[')
+    #is_brac_assign = idc.GetOpnd(int(idc.GetRegValue("pc")), 1).startswith('[')
     #base = idc.SegStart(int(idc.GetRegValue("pc")))
-    call_addr = int(virtual_call_addr) + base
+    call_addr = virtual_call_addr + base
     #print("base:", hex(base))
     #print("call_addr:", hex(call_addr))
-    is_brac_call = idc.GetOpnd(call_addr, 0).find('[')
+    #is_brac_call = idc.GetOpnd(call_addr, 0).find('[')
     is_brac = -1
-    if is_brac_assign != -1 and is_brac_call != -1:
-        is_brac = 0
+    #if is_brac_assign != -1 and is_brac_call != -1:
+    #    is_brac = 0
     p_vtable_addr, v_func_addr = get_vtable_and_vfunc_addr(is_brac, register_vtable, offset)
     #print("p_vtable_addr:", hex(p_vtable_addr), "v_func_addr:", hex(v_func_addr))
     # possibly redundant
@@ -131,7 +130,7 @@ def do_logic(virtual_call_addr, register_vtable, offset):
     except:
         print("Logging - xref failed to function at address:", hex(v_func_addr), ", from:", hex(v_func_addr) )
     # first arg for error message only, use 0 image base
-    create_vtable_struct(int(virtual_call_addr), vtable_name, p_vtable_addr, offset)
+    create_vtable_struct(virtual_call_addr, vtable_name, p_vtable_addr, offset)
     #print("do_logic end")
 
 # not used by arm
