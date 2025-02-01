@@ -120,7 +120,11 @@ def do_logic(virtual_call_addr, register_vtable, offset):
     # add xref at blx
     succ = idc.add_cref(call_addr, v_func_addr, idc.XREF_USER|idc.fl_CF) # blx register can be a far call
     if not succ:
-        print("Logging - xref failed to function at address:" + hex(call_addr) + ", from:" + hex(v_func_addr) )
+        print("xref failed to function at address:" + hex(call_addr) + " to " + hex(v_func_addr) )
+        print("bp address:", hex(bp_addr+base))
+        print("vtable_addr", hex(p_vtable_addr))
+        print("offset", offset)
+        raise Exception("Error in adding xref to function, at BP address::", hex(call_addr))
     # first arg for error message only, use 0 image base
     create_vtable_struct(virtual_call_addr, vtable_name, p_vtable_addr, offset)
 
