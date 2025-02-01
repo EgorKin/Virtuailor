@@ -79,10 +79,10 @@ def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset)
 
         if vtable_func_value & 1:
             vtable_func_value -= 1 # thumb's
-        try:
-            fix_arm_vtable(vtable_func_value)
-        except:
-            pass
+        #try:
+        #    fix_arm_vtable(vtable_func_value)
+        #except:
+        #    pass
         v_func_name = get_fixed_name_for_object(vtable_func_value, "vfunc_")
         if not v_func_name:
             print("GetFunctionName Error with", hex(vtable_func_value))
