@@ -74,6 +74,7 @@ def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset)
             print("bp address:", hex(bp_addr+base))
             print("vtable_addr", hex(p_vtable_addr))
             print("offset", offset)
+            raise Exception("Error in adding functions to struct, at BP address::", hex(start_address))
         #    vtable_func_value = idc.read_dbg_dword(vtable_func_value)  # Use dword for 32-bit
         #    print("69: vtable_func_value:", vtable_func_value)
         #    v_func_name = idc.GetFunctionName(vtable_func_value)
