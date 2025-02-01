@@ -164,4 +164,4 @@ except Exception as e:
     import traceback
     traceback.print_exc()
     print("Error! at BP address:", hex(idc.GetRegValue("pc")))
-    return False
+    return True
