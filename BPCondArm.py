@@ -59,9 +59,22 @@ def add_comment_to_struct_members(struct_id, vtable_func_offset, start_address):
 
 def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset):
     vtable_func_offset = 0
-    vtable_func_value = idc.read_dbg_dword(p_vtable_addr)  # Use dword for 32-bit
-    vtable_func_value -= 1 # thumb's 
-    while vtable_func_value != 0:
+
+    # skip initial 0x0 (somehow happens to libart.so)
+    while True:
+        vtable_func_value = idc.read_dbg_dword(p_vtable_addr + vtable_func_offset)  # Use dword for 32-bit
+        if vtable_func_value == 0:
+            vtable_func_offset += 4
+        else:
+            break
+    
+    while True:
+        vtable_func_value = idc.read_dbg_dword(p_vtable_addr + vtable_func_offset)  # Use dword for 32-bit
+        if vtable_func_value == 0 or vtable_func_value >> 24 == 0xff:
+            break
+
+        if vtable_func_value & 1:
+            vtable_func_value -= 1 # thumb's
         try:
             fix_arm_vtable(vtable_func_value)
         except:
@@ -89,24 +102,21 @@ def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset)
         err = idc.add_struc_member(struct_id, v_func_name, vtable_func_offset , idc.FF_DWRD, -1, 4)  # Use dword for 32-bit
         # print("add_struc_member:",err==0)
         vtable_func_offset += 4  # Use 4 bytes for 32-bit
-        vtable_func_value = idc.read_dbg_dword(p_vtable_addr + vtable_func_offset)  # Use dword for 32-bit
-        if vtable_func_value == 0 or vtable_func_value >> 24 == 0xff:
-            break
-        vtable_func_value -= 1 # thumb's 
+        
 
 def create_vtable_struct(start_address, vtable_name, p_vtable_addr, offset):
     #print("create_vtable_struct")
     struct_name = vtable_name + "_struct"
     struct_id = idc.add_struc(-1, struct_name, 0)
-    if struct_id != idc.BADADDR:
+    if struct_id != -1:
         add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset)
         idc.OpStroff(idautils.DecodeInstruction(int(idc.GetRegValue("pc"))), 1, struct_id)
-    else:
+    else: # name is already taken
         struct_id = idc.GetStrucIdByName(struct_name)
-        if struct_id != idc.BADADDR:
+        if struct_id != -1:
             idc.OpStroff(idautils.DecodeInstruction(int(idc.GetRegValue("pc"))), 1, struct_id)
-        else:
-            print("Failed to create struct: " +  struct_name)
+        else: # not likely
+            print("Failed to create struct without name collision: " +  struct_name)
 
 def do_logic(virtual_call_addr, register_vtable, offset):
     #is_brac_assign = idc.GetOpnd(int(idc.GetRegValue("pc")), 1).startswith('[')
@@ -127,6 +137,7 @@ def do_logic(virtual_call_addr, register_vtable, offset):
     vtable_name = get_fixed_name_for_object(p_vtable_addr, "vtable_")
     idaapi.set_name(p_vtable_addr, vtable_name, idaapi.SN_FORCE)
     try:
+        # add xref at blx
         succ = idc.add_cref(call_addr, v_func_addr, idc.XREF_USER|idc.fl_CF) # blx register can be a far call
         #print("add_cref",hex(call_addr), hex(v_func_addr), succ)
     except:
