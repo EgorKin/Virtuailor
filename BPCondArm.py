@@ -183,11 +183,12 @@ def do_logic(virtual_call_addr, register_vtable, offset):
     # rename the called vfunc first
     v_func_name = get_fixed_name_for_object(v_func_addr, "vfunc_")
     idaapi.set_name(v_func_addr, v_func_name, idaapi.SN_FORCE)
+    idc.set_func_cmt(v_func_addr, v_func_name+" @ "+vtable_name, 1)
     # add xref and cmt at blx
     succ = idc.add_cref(
         call_addr, v_func_addr, idc.XREF_USER | idc.fl_CF
     )  # blx register can be a far call
-    idc.set_cmt(call_addr, v_func_name, 0)
+    #append_cmt(call_addr, v_func_name, 0)
 
     if not succ:
         print(
