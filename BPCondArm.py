@@ -155,7 +155,7 @@ def create_vtable_struct(start_address, vtable_name, p_vtable_addr, offset):
         else:  # not likely
             print("Failed to create struct without name collision: " + struct_name)
     # add xref to vtable mem entry
-    idc.add_dref(bp_addr, p_vtable_addr, idc.XREF_USER|idc.dr_O|idc.dr_R)
+    idc.add_dref(bp_addr+base, p_vtable_addr, idc.XREF_USER|idc.dr_O|idc.dr_R)
 
 
 def do_logic(virtual_call_addr, register_vtable, offset):
