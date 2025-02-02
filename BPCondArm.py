@@ -5,6 +5,7 @@ from re import sub
 import idc
 import idaapi
 import idautils
+import ida_bytes
 
 base = idaapi.get_imagebase()
 
@@ -18,6 +19,9 @@ def append_cmt(ea, cmt, repeatable=0, add_repeated=False):
         new_cmt = cmt
     idc.set_cmt(ea, new_cmt, repeatable)
 
+def is_code(ea):
+    return idc.is_code(ida_bytes.get_flags(ea))
+
 def make_func(ea):
     code_err = idc.MakeCode(ea)
     func_err = idc.MakeFunction(ea)
@@ -25,7 +29,7 @@ def make_func(ea):
 
 
 def fix_arm_vtable(vfunc_addr):
-    if not idc.is_code(vfunc_addr):
+    if not is_code(vfunc_addr):
         code_err, func_err = make_func(vfunc_addr)
         if code_err == 0:
             print("Failed to create code, at", hex(vfunc_addr))
@@ -164,12 +168,16 @@ def do_logic(virtual_call_addr, register_vtable, offset):
     p_vtable_addr, v_func_addr = get_vtable_and_vfunc_addr(
         is_brac, register_vtable, offset
     )
+
     # v_func_addr possibly invalid
     # .text:CAEDF134 LDR.W           R2, [R5,#0x150]
     # .text:CAEDF138 CBZ             R2, loc_CAEDF146 (branch if zero)
     # .text:CAEDF13A LDR.W           R0, [R5,#0x154]
     # .text:CAEDF13E MOV             R1, R4
     # .text:CAEDF140 BLX             R2
+    if not is_code(v_func_addr):
+        return
+        
     vtable_name = get_fixed_name_for_object(p_vtable_addr, "vtable_")
     idaapi.set_name(p_vtable_addr, vtable_name, idaapi.SN_FORCE)
     # rename the called vfunc first
