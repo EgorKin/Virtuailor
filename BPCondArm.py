@@ -203,9 +203,8 @@ def do_logic(virtual_call_addr, register_vtable, offset):
         raise Exception(
             "Error in adding xref to function, at BP address::", hex(call_addr)
         )
-    #TODO: add comment on blx to vfunc, ldr to vtable, and repeatable comment on vtable struct
-    # first arg for error message only, use 0 image base
     create_vtable_struct(virtual_call_addr, vtable_name, p_vtable_addr, offset)
+    # TODO: retype object and vtable function
 
 
 try:
