@@ -1,5 +1,6 @@
 virtual_call_addr, bp_addr ,register_vtable,offset = <<<start_addr>>>, <<<bp_addr>>>,"<<<register_vtable>>>", <<<offset>>>
 
+from hmac import new
 from re import sub
 import idc
 import idaapi
@@ -7,6 +8,15 @@ import idautils
 
 base = idaapi.get_imagebase()
 
+def append_cmt(ea, cmt, repeatable=0, add_repeated=False):
+    cur_cmt = idc.get_cmt(ea, repeatable)
+    if not add_repeated and cur_cmt and cmt in cur_cmt:
+        return
+    if cur_cmt:
+        new_cmt = cur_cmt + "\n" + cmt
+    else:
+        new_cmt = cmt
+    idc.set_cmt(ea, new_cmt, repeatable)
 
 def make_func(ea):
     code_err = idc.MakeCode(ea)
@@ -39,7 +49,7 @@ def get_fixed_name_for_object(address, prefix=""):
         if addr_hex[-1] == "L":
             addr_hex = addr_hex[:-1]
         name = prefix + addr_hex
-    return name  # nullsub_
+    return name  # nullsub_ or already renamed
 
 
 def get_vtable_and_vfunc_addr(is_brac, register_vtable, offset):
@@ -144,6 +154,8 @@ def create_vtable_struct(start_address, vtable_name, p_vtable_addr, offset):
             )
         else:  # not likely
             print("Failed to create struct without name collision: " + struct_name)
+    # add xref to vtable mem entry
+    idc.add_dref(bp_addr, p_vtable_addr, idc.XREF_USER|idc.dr_O|idc.dr_R)
 
 
 def do_logic(virtual_call_addr, register_vtable, offset):
@@ -160,10 +172,15 @@ def do_logic(virtual_call_addr, register_vtable, offset):
     # .text:CAEDF140 BLX             R2
     vtable_name = get_fixed_name_for_object(p_vtable_addr, "vtable_")
     idaapi.set_name(p_vtable_addr, vtable_name, idaapi.SN_FORCE)
-    # add xref at blx
+    # rename the called vfunc first
+    v_func_name = get_fixed_name_for_object(v_func_addr, "vfunc_")
+    idaapi.set_name(v_func_addr, v_func_name, idaapi.SN_FORCE)
+    # add xref and cmt at blx
     succ = idc.add_cref(
         call_addr, v_func_addr, idc.XREF_USER | idc.fl_CF
     )  # blx register can be a far call
+    idc.set_cmt(call_addr, v_func_name, 0)
+
     if not succ:
         print(
             "xref failed to function at address:"
@@ -177,6 +194,7 @@ def do_logic(virtual_call_addr, register_vtable, offset):
         raise Exception(
             "Error in adding xref to function, at BP address::", hex(call_addr)
         )
+    #TODO: add comment on blx to vfunc, ldr to vtable, and repeatable comment on vtable struct
     # first arg for error message only, use 0 image base
     create_vtable_struct(virtual_call_addr, vtable_name, p_vtable_addr, offset)
 
