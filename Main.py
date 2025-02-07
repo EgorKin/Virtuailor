@@ -57,16 +57,26 @@ def set_values(start, end):
     return start, end
 
 
+def to_hex_str(num):
+    s = hex(num)
+    if s[-1] == "L":
+        return s[2:-1]
+    else:
+        return s[2:]
+
+
 if __name__ == "__main__":
-    start_addr_range = (
+    start_addr = (
         0x20FE74  # idc.MinEA()  # You can change the virtual calls address range
     )
-    end_addr_range = 0x20FE7A  # idc.MaxEA()
+    end_addr = 0x20FE7A  # idc.MaxEA()
+    start_addr_str = hex(start_addr)
+    end_addr_str = hex(end_addr)
     oldTo = idaapi.set_script_timeout(0)
     # Initializes the GUI: Deletes the 0x in the beginning and the L at the end:
     gui = GUI.VirtuailorBasicGUI(
         set_values,
-        {"start": hex(start_addr_range)[2:-1], "end": hex(end_addr_range)[2:-1]},
+        {"start": to_hex_str(start_addr), "end": to_hex_str(end_addr)},
     )
     gui.exec_()
     if gui.start_line.text != "banana":
