@@ -58,8 +58,10 @@ def set_values(start, end):
 
 
 if __name__ == "__main__":
-    start_addr_range = idc.MinEA()  # You can change the virtual calls address range
-    end_addr_range = idc.MaxEA()
+    start_addr_range = (
+        0x20FE74  # idc.MinEA()  # You can change the virtual calls address range
+    )
+    end_addr_range = 0x20FE7A  # idc.MaxEA()
     oldTo = idaapi.set_script_timeout(0)
     # Initializes the GUI: Deletes the 0x in the beginning and the L at the end:
     gui = GUI.VirtuailorBasicGUI(
