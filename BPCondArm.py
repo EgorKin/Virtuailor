@@ -135,7 +135,7 @@ def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset)
         succ = idaapi.set_name(vtable_func_value, v_func_name, idaapi.SN_FORCE)
         d = idaapi.decompile(vtable_func_value)
         t = idaapi.cfunc_type(d).dstr()
-        print(t)
+        print(t, hex(vtable_func_value))
         # print("set func name " + v_func_name + " at " + hex(vtable_func_value),succ)
         err = idc.add_struc_member(
             struct_id, v_func_name, vtable_func_offset, idc.FF_DWRD, -1, 4
