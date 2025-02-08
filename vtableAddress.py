@@ -1,5 +1,3 @@
-from __future__ import print_function
-from operator import call
 import idc
 import idautils
 import ida_frame
