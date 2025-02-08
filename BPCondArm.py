@@ -90,9 +90,22 @@ def sub_one_if_thumb(vtable_func_value):
         vtable_func_value -= 1  # thumb's
     return vtable_func_value
 
+def gen_vtable_c_struct(name, fp_decls):
+    struct = f"struct {name} {{\n"
+    for fp_decl in fp_decls:
+        struct += f"    {fp_decl};\n"
+    struct += "};\n"
+    print(struct)
+    return struct
+
+def get_func_ptr_type(v_func_value, v_func_name):
+    d = idaapi.decompile(v_func_value)
+    t = idaapi.cfunc_type(d).dstr()
+    return t.replace("(", f"(*{v_func_name})(", 1)
 
 def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset):
     v_func_offset = 0
+    fp_decls = []
 
     # skip initial 0x0 (somehow happens to libart.so)
     # https://alschwalm.com/blog/static/2016/12/17/reversing-c-virtual-functions/
@@ -133,9 +146,9 @@ def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset)
                 hex(start_address),
             )
         succ = idaapi.set_name(v_func_value, v_func_name, idaapi.SN_FORCE)
-        d = idaapi.decompile(v_func_value)
-        t = idaapi.cfunc_type(d).dstr()
-        print(t, hex(v_func_value))
+        fp_decl = get_func_ptr_type(v_func_value, v_func_name)
+        fp_decls.append(fp_decl)
+        print(fp_decl, hex(v_func_value))
         # can have nullsub (void (), directly return) or method don't use this (with no arg)
         # print("set func name " + v_func_name + " at " + hex(vtable_func_value),succ)
         # TODO: construct vtable struct with function type & function name
@@ -144,6 +157,11 @@ def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset)
         )  # Use dword for 32-bit
         # print("add_struc_member:",err==0)
         v_func_offset += 4  # Use 4 bytes for 32-bit
+    
+    # create c struct declaration with fp_decls
+    c_struct = gen_vtable_c_struct("Test", fp_decls)
+    idc.SetLocalType(-1, c_struct, 0)
+    
 
 
 def create_vtable_struct(start_address, vtable_name, p_vtable_addr, offset):
