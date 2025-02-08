@@ -1,4 +1,5 @@
 from __future__ import print_function
+from operator import call
 import idc
 import idautils
 import ida_frame
@@ -219,7 +220,9 @@ def get_con2_var_or_num_arm(func_reg, call_addr):
                         if offset == "0":  # must be [R*] format without offset
                             return obj_register, vptr_register, offset, cur_addr
                         else:
+                            print(call_addr, "offset is not 0")
                             return ERROR_RET
+                    print(call_addr, "not after obj deref")
                     return ERROR_RET
 
             elif mnem.startswith("MOV") and idc.GetOpnd(cur_addr, 0) == func_reg:
