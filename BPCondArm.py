@@ -175,11 +175,11 @@ def cast_vtable_struct(vtable_name, vtable_addr, offset):
     struct_name = vtable_name + "_struct"
     #struct_id = idc.add_struc(-1, struct_name, 0)
     struct_id = idc.GetStrucIdByName(struct_name)
-    print("struct_id",struct_id)
-    if struct_id == -1: # not created yet
+    if struct_id == idc.BADADDR: # not created yet
         struct_id = create_vtable_struct(struct_name, vtable_addr, offset)
-    print("struct_id",struct_id)
-    if idc.SetType(vtable_addr, struct_name) == 0:
+    succ = idc.SetType(vtable_addr, struct_name)
+    print("SetType", succ)
+    if  succ == 0:
         error_print()
         raise Exception("SetType failed")
         
