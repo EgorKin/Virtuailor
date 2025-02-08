@@ -92,7 +92,7 @@ def sub_one_if_thumb(vtable_func_value):
 
 
 def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset):
-    vtable_func_offset = 0
+    v_func_offset = 0
 
     # skip initial 0x0 (somehow happens to libart.so)
     # https://alschwalm.com/blog/static/2016/12/17/reversing-c-virtual-functions/
@@ -101,30 +101,30 @@ def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset)
     # method (i.e., classes that are abstract).
 
     while True:
-        vtable_func_value = idc.read_dbg_dword(
-            p_vtable_addr + vtable_func_offset
+        v_func_value = idc.read_dbg_dword(
+            p_vtable_addr + v_func_offset
         )  # Use dword for 32-bit
-        if vtable_func_value == 0:
-            vtable_func_offset += 4
+        if v_func_value == 0:
+            v_func_offset += 4
         else:
             break
 
     while True:
-        vtable_func_value = idc.read_dbg_dword(
-            p_vtable_addr + vtable_func_offset
+        v_func_value = idc.read_dbg_dword(
+            p_vtable_addr + v_func_offset
         )  # Use dword for 32-bit
-        if vtable_func_value == 0 or vtable_func_value >> 24 == 0xFF:
+        if v_func_value == 0 or v_func_value >> 24 == 0xFF:
             #TODO: use Offset to Top component (negative offset) to find the end of the vtable
             break
 
-        vtable_func_value = sub_one_if_thumb(vtable_func_value)
+        v_func_value = sub_one_if_thumb(v_func_value)
         # try:
         #    fix_arm_vtable(vtable_func_value)
         # except:
         #    pass
-        v_func_name = get_fixed_name_for_object(vtable_func_value, "vfunc_")
+        v_func_name = get_fixed_name_for_object(v_func_value, "vfunc_")
         if not v_func_name:
-            print("GetFunctionName Error with", hex(vtable_func_value))
+            print("GetFunctionName Error with", hex(v_func_value))
             print("bp address:", hex(bp_addr + base))
             print("vtable_addr", hex(p_vtable_addr))
             print("offset", offset)
@@ -132,16 +132,18 @@ def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset)
                 "Error in adding functions to struct, at BP address::",
                 hex(start_address),
             )
-        succ = idaapi.set_name(vtable_func_value, v_func_name, idaapi.SN_FORCE)
-        d = idaapi.decompile(vtable_func_value)
+        succ = idaapi.set_name(v_func_value, v_func_name, idaapi.SN_FORCE)
+        d = idaapi.decompile(v_func_value)
         t = idaapi.cfunc_type(d).dstr()
-        print(t, hex(vtable_func_value))
+        print(t, hex(v_func_value))
+        # can have nullsub (void (), directly return) or method don't use this (with no arg)
         # print("set func name " + v_func_name + " at " + hex(vtable_func_value),succ)
+        # TODO: construct vtable struct with function type & function name
         err = idc.add_struc_member(
-            struct_id, v_func_name, vtable_func_offset, idc.FF_DWRD, -1, 4
+            struct_id, v_func_name, v_func_offset, idc.FF_DWRD, -1, 4
         )  # Use dword for 32-bit
         # print("add_struc_member:",err==0)
-        vtable_func_offset += 4  # Use 4 bytes for 32-bit
+        v_func_offset += 4  # Use 4 bytes for 32-bit
 
 
 def create_vtable_struct(start_address, vtable_name, p_vtable_addr, offset):
