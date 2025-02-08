@@ -155,6 +155,7 @@ def parse_arm_dereference(opnd):
     [R2] -> R2, "0"
     other format -> None, None
     """
+    # TODO: LDR.W           R0, [R5],#8
     if opnd[0] != "[" or opnd[-1] != "]":
         return None, None
     sep_idx = opnd.find(",")
@@ -208,18 +209,20 @@ def get_con2_var_or_num_arm(func_reg, call_addr):
                     cur_addr = idc.PrevHead(cur_addr)
                     # FIXME: currently object deref must exactly before vtable deref
                     #        a while is not safe enough
-                    mnem = idc.GetMnem(cur_addr)
-                    if (
-                        mnem.startswith("LDR")
-                        and idc.GetOpnd(cur_addr, 0) == vptr_register
-                    ):
-                        opnd2 = idc.GetOpnd(cur_addr, 1)
-                        obj_register, offset = parse_arm_dereference(opnd2)
-                        if offset == "0":  # must be [R*] format without offset
-                            return obj_register, vptr_register, offset, cur_addr
-                        else:
-                            print(call_addr, "offset is not 0")
-                            return ERROR_RET
+                    while cur_addr >= start_addr:
+                        mnem = idc.GetMnem(cur_addr)
+                        if (
+                            mnem.startswith("LDR")
+                            and idc.GetOpnd(cur_addr, 0) == vptr_register
+                        ):
+                            opnd2 = idc.GetOpnd(cur_addr, 1)
+                            obj_register, offset = parse_arm_dereference(opnd2)
+                            if offset == "0":  # must be [R*] format without offset
+                                return obj_register, vptr_register, offset, cur_addr
+                            else:
+                                print(call_addr, "offset is not 0")
+                                return ERROR_RET
+                        cur_addr = idc.PrevHead(cur_addr)
                     print(call_addr, "not after obj deref")
                     return ERROR_RET
 
