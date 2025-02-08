@@ -91,9 +91,9 @@ def sub_one_if_thumb(vtable_func_value):
     return vtable_func_value
 
 def gen_vtable_c_struct(name, fp_decls):
-    struct = f"struct {name} {{\n"
+    struct = "struct " + name + " {\n"
     for fp_decl in fp_decls:
-        struct += f"    {fp_decl};\n"
+        struct += fp_decl+ ";\n"
     struct += "};\n"
     print(struct)
     return struct
@@ -101,7 +101,8 @@ def gen_vtable_c_struct(name, fp_decls):
 def get_func_ptr_type(v_func_value, v_func_name):
     d = idaapi.decompile(v_func_value)
     t = idaapi.cfunc_type(d).dstr()
-    return t.replace("(", f"(*{v_func_name})(", 1)
+    ptr_str = "(*" + v_func_name + ")("
+    return t.replace("(", ptr_str, 1)
 
 def add_all_functions_to_struct(start_address, struct_id, p_vtable_addr, offset):
     v_func_offset = 0
