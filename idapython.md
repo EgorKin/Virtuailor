@@ -6,7 +6,7 @@ https://chatgpt.com/share/67a61f8c-37b4-8006-9a24-c5aa84bd8779
 ```
 # construct c_struct (MyStruct) definition
 idc.SetLocalType(-1, c_struct, 0)
-idc.SetType(0x4165FD, "MyStruct *")
+idc.SetType(0x4165FD, "MyStruct *") # return bool
 ```
 
 Get function type:

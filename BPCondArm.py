@@ -1,4 +1,4 @@
-call_addr, bp_addr, register_vtable,offset = <<<start_addr>>>, <<<bp_addr>>>,"<<<register_vtable>>>", <<<offset>>>
+call_addr, bp_addr, register_vtable, register_object, offset = <<<start_addr>>>, <<<bp_addr>>>,"<<<register_vtable>>>", "<<<register_object>>>",<<<offset>>>
 
 from os import error
 import idc
@@ -178,8 +178,7 @@ def cast_vtable_struct(vtable_name, vtable_addr, offset):
     if struct_id == idc.BADADDR: # not created yet
         struct_id = create_vtable_struct(struct_name, vtable_addr, offset)
     succ = idc.SetType(vtable_addr, struct_name)
-    print("SetType", succ)
-    if  succ == 0:
+    if not succ:
         error_print()
         raise Exception("SetType failed")
         
@@ -191,9 +190,8 @@ def cast_vtable_struct(vtable_name, vtable_addr, offset):
 
 
 def do_logic(call_addr, register_vtable, offset):
-    is_brac = -1
     vtable_addr, v_func_addr = get_vtable_and_vfunc_addr(
-        is_brac, register_vtable, offset
+        -1, register_vtable, offset
     )
 
     # v_func_addr possibly invalid

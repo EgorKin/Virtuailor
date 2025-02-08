@@ -176,6 +176,7 @@ def parse_arm_dereference(opnd):
 def get_con2_var_or_num_arm(func_reg, call_addr):
     """
     Also handle cases like this:
+    .text:0020FE3A                 LDR             R2, [R1] (TODO: break here to type class object ptr R1)
     .text:0020FE3C                 LDR             R2, [R2,#0xC] ; load virtual func from vtable (target)
     .text:0020FE3E                 LDR.W           R12, [SP,#0x98+var_34]
     .text:0020FE42                 LDR.W           LR, [SP,#0x98+var_48]
@@ -191,63 +192,82 @@ def get_con2_var_or_num_arm(func_reg, call_addr):
     start_addr = idc.GetFunctionAttr(call_addr, idc.FUNCATTR_START)
     cur_addr = idc.PrevHead(call_addr)
     tmp_stack_addr = None
+    ERROR_RET = None, None, None, None
     while cur_addr >= start_addr:
         mnem = idc.GetMnem(cur_addr)
         if not tmp_stack_addr:
             if mnem.startswith("LDR") and idc.GetOpnd(cur_addr, 0) == func_reg:
                 opnd2 = idc.GetOpnd(cur_addr, 1)
-                register, offset = parse_arm_dereference(opnd2)
-                if register is None:
-                    return None, None, None
-                if (
-                    register == "SP"
+                vptr_register, offset = parse_arm_dereference(opnd2)
+                if vptr_register is None:
+                    return ERROR_RET
+                elif (
+                    vptr_register == "SP"
                 ):  # load virtual func from stack, lookup happens before
                     tmp_stack_addr = opnd2
-                else:
-                    return register, offset, cur_addr
+                else:  # found!, track object ptr dereference
+                    cur_addr = idc.PrevHead(cur_addr)
+                    # FIXME: currently object deref must exactly before vtable deref
+                    #        a while is not safe enough
+                    mnem = idc.GetMnem(cur_addr)
+                    if (
+                        mnem.startswith("LDR")
+                        and idc.GetOpnd(cur_addr, 0) == vptr_register
+                    ):
+                        opnd2 = idc.GetOpnd(cur_addr, 1)
+                        obj_register, offset = parse_arm_dereference(opnd2)
+                        if offset == "0":  # must be [R*] format without offset
+                            return obj_register, vptr_register, offset, cur_addr
+                        else:
+                            return ERROR_RET
+                    return ERROR_RET
+
             elif mnem.startswith("MOV") and idc.GetOpnd(cur_addr, 0) == func_reg:
                 func_reg = idc.GetOpnd(cur_addr, 1)
                 if func_reg not in REGS:
-                    return None, None, None
+                    return ERROR_RET
         else:
             if mnem.startswith("STR") and idc.GetOpnd(cur_addr, 1) == tmp_stack_addr:
                 func_reg = idc.GetOpnd(cur_addr, 0)
                 tmp_stack_addr = None
 
         cur_addr = idc.PrevHead(cur_addr)
-    return None, None, None
+    return ERROR_RET
     # return "out of the function", "-1", cur_addr
 
 
 # TODO: fix for load from memory
-def get_con2_var_or_num(call_reg, call_addr):
-    if arch == "Intel":
-        return get_con2_var_or_num_intel(call_reg, call_addr)
-    else:
-        return get_con2_var_or_num_arm(call_reg, call_addr)
+# def get_con2_var_or_num(call_reg, call_addr):
+#    if arch == "Intel":
+#        return get_con2_var_or_num_intel(call_reg, call_addr)
+#    else:
+#        return get_con2_var_or_num_arm(call_reg, call_addr)
 
 
-def get_bp_condition(start_addr, register_vtable, offset, bp_address):
+def get_bp_condition(start_addr, register_vtable, register_object, offset, bp_address):
 
     return (
         BP_COND_TEXT.replace("<<<start_addr>>>", str(start_addr))
         .replace("<<<register_vtable>>>", register_vtable)
         .replace("<<<offset>>>", offset)
         .replace("<<<bp_addr>>>", str(bp_address))
+        .replace("<<<register_object>>>", register_object)
     )
 
 
-def write_vtable2file(start_addr, raw_opnd):
+def write_vtable2file(call_addr, raw_opnd):
     """
      :param start_addr: The start address of the virtual call
     :return: The break point condition and the break point address
     """
     # raw_opnd = idc.GetOpnd(start_addr, 0)
     reg = raw_opnd
-    reg_vtable, offset, bp_address = get_con2_var_or_num(reg, start_addr)
-    if not reg_vtable:
-        return "", -1
+    reg_object, reg_vtable, offset, bp_address = get_con2_var_or_num_arm(reg, call_addr)
 
+    if reg_vtable in REGS:
+        cond = get_bp_condition(call_addr, reg_vtable, reg_object, offset, bp_address)
+        return cond, bp_address
+    return "", -1
     set_bp = True
     cond = ""
     # TODO check the get_con2 return variables!!@
@@ -271,5 +291,5 @@ def write_vtable2file(start_addr, raw_opnd):
         if set_bp:
             # start_addr = start_addr - idc.SegStart(start_addr)
             if reg_vtable in REGS:
-                cond = get_bp_condition(start_addr, reg_vtable, offset, bp_address)
+                cond = get_bp_condition(call_addr, reg_vtable, offset, bp_address)
     return cond, bp_address

@@ -29,12 +29,12 @@ def get_xref_code_to_func(func_addr):
 
 
 def add_bp_to_virtual_calls(cur_addr, end):
-    call_instr = vtableAddress.CALL_INSTR
-    registers = vtableAddress.REGS
+    CALL_INSTR = vtableAddress.CALL_INSTR
+    REGS = vtableAddress.REGS
     while cur_addr < end:
         if cur_addr == idc.BADADDR:
             break
-        elif idc.GetMnem(cur_addr) == call_instr:
+        elif idc.GetMnem(cur_addr) == CALL_INSTR:
             operand = idc.GetOpnd(cur_addr, 0)
             # print(
             #    "Virtual Call " + call_instr + " " + operand + " at: " + hex(cur_addr)
@@ -43,7 +43,7 @@ def add_bp_to_virtual_calls(cur_addr, end):
             # if True in [
             #    idc.GetOpnd(cur_addr, 0).find(reg) != -1 for reg in registers
             # ]:  # call involving a register, but we can't handle operations on the register
-            if idc.GetOpnd(cur_addr, 0) in registers:  # ensure a register only call
+            if idc.GetOpnd(cur_addr, 0) in REGS:  # ensure a register only call
                 cond, bp_address = vtableAddress.write_vtable2file(cur_addr, operand)
                 if cond != "":
                     bp_vtable = AddBP.add(bp_address, cond)
