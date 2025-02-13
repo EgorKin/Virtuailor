@@ -68,3 +68,60 @@ obj is at stack (parse & cast stack address)
 .text:002C610C                 LDR             R2, [SP,#0x108+var_104]
 .text:002C610E                 BLX             R2
 ```
+
+directly get vtable from arg? (0x104778)
+
+call from member fp? (R4 is this)
+
+```
+LDRB             R2, [R1,#9]
+ADD.W            R0, R6, #0xC
+LDR.W            R12, [R4,#0x18]
+ADDS             R1, R5, R0
+ADDS             R3, R7, R0
+MOV              R0, R4
+MOV              R6, R2
+STR.W            R10, [SP,#0x6E8+var_6E8]
+LSLS             R2, R6, #1
+STR              R1, [SP,#0x6E8+var_6BC]
+STR              R3, [SP,#0x6E8+var_6B8]
+BLX             R12
+```
+
+load from different reg (R10 seems obj ptr)
+
+```
+LDRH            R0, [R7]
+LDR.W           R1, [R10,#4]
+BLX             R1
+MOV             R9, R7
+MOV             R6, R0
+LDRH.W          R0, [R9,#4]!
+LDR.W           R1, [R10,#4]
+BLX             R1
+```
+
+R0 unknown (R5 seems not vptr)
+
+```
+LDR             R0, [R5]
+STR             R6, [R5]
+CBZ             R0, loc_3C316
+LDR             R1, [R5,#4]
+BLX             R1
+```
+
+TODO: handle `!` & `[], #off` & no obj case , distinguish fptr call and virtual call
+always use value in []
+
+Mode Syntax Behavior
+Offset Addressing LDR R0, [R1, #8] Load from R1 + 8, R1 unchanged
+Pre-Indexed LDR R0, [R1, #8]! Update R1 = R1 + 8, then load
+Post-Indexed LDR R0, [R1], #8 Load first, then R1 = R1 + 8
+Register Offset LDR R0, [R1, R2] Load from R1 + R2
+Register Offset with Shift LDR R0, [R1, R2, LSL #n] Load from R1 + (R2 << n)
+Pre-Indexed with Register Offset LDR R0, [R1, R2]! R1 = R1 + R2, then load
+Post-Indexed with Register Offset LDR R0, [R1], R2 Load first, then R1 = R1 + R2
+Literal Addressing LDR R0, =value Load a value using PC-relative addressing
+
+idc.GetType: return type only at exact position
