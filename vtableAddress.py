@@ -226,6 +226,8 @@ def get_con2_var_or_num_arm(func_reg, call_addr):
                         ):
                             opnd2 = idc.GetOpnd(cur_addr, 1)
                             obj_register, obj_offset = parse_arm_dereference(opnd2)
+                            if obj_register is None:
+                                return None
                             return (
                                 deref_vptr_addr,
                                 cur_addr,
