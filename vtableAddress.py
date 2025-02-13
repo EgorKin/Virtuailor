@@ -153,6 +153,7 @@ def parse_arm_dereference(opnd):
     """
     [R2,#0xC] -> R2, "0xC"
     [R2,#0xC]! -> R2, "0xC"
+    [R2],#0xC -> R2
     [R2] -> R2, "0"
     LDR.W           R0, [R5],#8 (only [R5] will be passed in)
     other format -> None, None
@@ -160,13 +161,10 @@ def parse_arm_dereference(opnd):
     LDR R0, [R1, R2, LSL #n]
     """
     if opnd[0] == "[":
-        if opnd[-1] == "]":
-            stripped = opnd[1:-1]
-        elif opnd[-2:] == "]!":
-            stripped = opnd[1:-2]
-        else:
-            print("parse_arm_dereference: unseen format " + opnd)
-            return None, None
+        stripped = opnd[1 : opnd.index("]")]
+        # else:
+        #    print("parse_arm_dereference: unseen format " + opnd)
+        #    return None, None
     else:
         return None, None
     sep_idx = stripped.find(",")

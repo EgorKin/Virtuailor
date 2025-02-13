@@ -1,6 +1,6 @@
 call_addr, deref_vptr_addr, deref_obj_addr, vtable_register, object_register, vtable_offset, object_offset = <<<call_addr>>>, <<<deref_vptr_addr>>>, <<<deref_obj_addr>>>, "<<<vtable_register>>>", "<<<object_register>>>", <<<vtable_offset>>>, <<<object_offset>>>
 
-from os import sep
+from os import path
 import idc
 import idaapi
 import idautils
