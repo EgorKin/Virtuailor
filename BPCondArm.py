@@ -11,8 +11,6 @@ deref_vptr_addr+=base
 deref_obj_addr+=base
 bp_addr = deref_obj_addr
 
-def error_print():
-    print("bp address:", hex(bp_addr))
 
 def append_cmt(ea, cmt, repeatable=0, add_repeated=False):
     cur_cmt = idc.get_cmt(ea, repeatable)
@@ -53,7 +51,7 @@ def get_name(address):
 def extract_object_name(name):
     sep_index = name.find("::")
     if sep_index != -1:
-        name = name[:sep_index]
+        return name[:sep_index]
     return ""
 
 def get_fixed_name(address, prefix=""):
@@ -142,7 +140,6 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr, of
         #    pass
         vfunc_name = get_fixed_name(vfunc_addr, prefix)
         if not vfunc_name:
-            error_print()
             raise Exception(
                 "GetFunctionName failed with " + hex(vfunc_addr)
             )
@@ -165,7 +162,6 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr, of
     vtable_c_struct = get_c_struct_str(vtable_struct_name, fp_decls)
     struct_id = idc.SetLocalType(-1, vtable_c_struct, 0)
     if struct_id == 0:
-        error_print()
         raise Exception(
             "SetLocalType failed with:\n" + vtable_c_struct
         )
@@ -184,7 +180,6 @@ def cast_vtable(object_struct_name, vtable_struct_name, vtable_addr, offset):
 
     succ = idc.SetType(vtable_addr, vtable_struct_name)
     if not succ:
-        error_print()
         raise Exception("cast_vtable_struct: SetType failed")
     # annotate vtable
     vtable_name = get_fixed_name(vtable_addr, "vtable_")
@@ -236,7 +231,6 @@ def do_logic():
         if struct_id != 0:
             inc_obj_count()
         else:
-            error_print()
             raise Exception(
                 "SetLocalType failed with:\n" + object_c_struct
             )
@@ -245,7 +239,6 @@ def do_logic():
     else: # already typed, use existing object struct & vtable struct
         object_struct_name = extract_object_name(vtable_struct_name)
         if not object_struct_name:
-            error_print()
             raise Exception(
                 "do_logic: extract_object_name failed with:\n" + vtable_struct_name
             )
@@ -253,12 +246,12 @@ def do_logic():
     # annotate code (always first pass)
     if not idc.GetType(objptr_addr):
         if not idc.SetType(objptr_addr, object_struct_name+"*"):
-            error_print()
+            print(hex(objptr_addr))
             raise Exception("SetType to objptr failed")
 
     if not idc.GetType(object_addr):
         if not idc.SetType(object_addr, object_struct_name):
-            error_print()
+            print(hex(object_addr))
             raise Exception("SetType to obj failed")
 
     idc.OpStroff(
@@ -267,12 +260,10 @@ def do_logic():
 
     # add xref to obj & vtable
     if not idc.add_dref(deref_obj_addr, object_addr, idc.XREF_USER|idc.dr_R):
-        error_print()
         raise Exception(
             "xref failed to object at address:" + hex(deref_obj_addr) + " to " + hex(object_addr)
         )
     if not idc.add_dref(deref_vptr_addr, vtable_addr+vtable_offset, idc.XREF_USER|idc.dr_R):
-        error_print()
         raise Exception(
             "xref failed to vtable at address:" + hex(deref_vptr_addr) + " to " + hex(vtable_addr)
         )
@@ -280,7 +271,6 @@ def do_logic():
     if not idc.add_cref(
         call_addr, vfunc_addr, idc.XREF_USER | idc.fl_CF
     ):
-        error_print()
         raise Exception(
             "xref failed at call addr:" + hex(call_addr) + " to " + hex(vfunc_addr)
         )
