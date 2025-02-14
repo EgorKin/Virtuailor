@@ -158,13 +158,10 @@ def parse_arm_dereference(opnd):
     LDR.W           R0, [R5],#8 (only [R5] will be passed in)
     other format -> None, None
     Not supported:
-    LDR R0, [R1, R2, LSL #n]
+    LDR R0, [R1, R2, LSL#n]
     """
-    if opnd[0] == "[":
+    if opnd[0] == "[" and not "LSL" in opnd:
         stripped = opnd[1 : opnd.index("]")]
-        # else:
-        #    print("parse_arm_dereference: unseen format " + opnd)
-        #    return None, None
     else:
         return None, None
     sep_idx = stripped.find(",")
@@ -228,14 +225,22 @@ def get_con2_var_or_num_arm(func_reg, call_addr):
                             obj_register, obj_offset = parse_arm_dereference(opnd2)
                             if obj_register is None:
                                 return None
-                            return (
-                                deref_vptr_addr,
-                                cur_addr,
-                                vtable_register,
-                                obj_register,
-                                vtable_offset,
-                                obj_offset,
-                            )
+                            else:
+                                deref_obj_addr = cur_addr
+                                for _ in range(5):
+                                    cur_addr = idc.PrevHead(cur_addr)
+                                    for r in idautils.XrefsFrom(cur_addr):
+                                        if r.type == idc.dr_R and r.user == 0:
+                                            return (
+                                                deref_vptr_addr,
+                                                deref_obj_addr,
+                                                r.to,
+                                                vtable_register,
+                                                obj_register,
+                                                vtable_offset,
+                                                obj_offset,
+                                            )
+                                return None  # TODO
                         cur_addr = idc.PrevHead(cur_addr)
                     print(call_addr, "not after obj deref")
                     return None
@@ -266,6 +271,7 @@ def get_bp_condition(
     call_addr,
     deref_vptr_addr,
     deref_obj_addr,
+    objptr_addr,
     vtable_register,
     object_register,
     vtable_offset,
@@ -276,6 +282,7 @@ def get_bp_condition(
         BP_COND_TEXT.replace("<<<call_addr>>>", str(call_addr))
         .replace("<<<deref_vptr_addr>>>", str(deref_vptr_addr))
         .replace("<<<deref_obj_addr>>>", str(deref_obj_addr))
+        .replace("<<<objptr_addr>>>", str(objptr_addr))
         .replace("<<<vtable_register>>>", vtable_register)
         .replace("<<<object_register>>>", object_register)
         .replace("<<<vtable_offset>>>", vtable_offset)
@@ -296,6 +303,7 @@ def write_vtable2file(call_addr, raw_opnd):
     (
         deref_vptr_addr,
         deref_obj_addr,
+        objptr_addr,
         vtable_register,
         object_register,
         vtable_offset,
@@ -306,6 +314,7 @@ def write_vtable2file(call_addr, raw_opnd):
             call_addr,
             deref_vptr_addr,
             deref_obj_addr,
+            objptr_addr,
             vtable_register,
             object_register,
             vtable_offset,

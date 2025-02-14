@@ -1,4 +1,4 @@
-call_addr, deref_vptr_addr, deref_obj_addr, vtable_register, object_register, vtable_offset, object_offset = <<<call_addr>>>, <<<deref_vptr_addr>>>, <<<deref_obj_addr>>>, "<<<vtable_register>>>", "<<<object_register>>>", <<<vtable_offset>>>, <<<object_offset>>>
+call_addr, deref_vptr_addr, deref_obj_addr, objptr_addr, vtable_register, object_register, vtable_offset, object_offset = <<<call_addr>>>, <<<deref_vptr_addr>>>, <<<deref_obj_addr>>>, <<<objptr_addr>>>,"<<<vtable_register>>>", "<<<object_register>>>", <<<vtable_offset>>>, <<<object_offset>>>
 
 from os import path
 import idc
@@ -251,10 +251,15 @@ def do_logic():
             )
 
     # annotate code (always first pass)
+    if not idc.GetType(objptr_addr):
+        if not idc.SetType(objptr_addr, object_struct_name+"*"):
+            error_print()
+            raise Exception("SetType to objptr failed")
+
     if not idc.GetType(object_addr):
         if not idc.SetType(object_addr, object_struct_name):
             error_print()
-            raise Exception("SetType failed")
+            raise Exception("SetType to obj failed")
 
     idc.OpStroff(
         idautils.DecodeInstruction(deref_vptr_addr, 1, struct_id)

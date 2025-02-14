@@ -21,6 +21,9 @@ t.dstr()
 ```
 
 call every module's functions through idaapi (import \* from almost all (except idc) modules)
+exception: (idautils.)XrefsFrom
+no need to idc. in ida shell
+xref obj attrs: 'frm', 'iscode', 'to', 'type', 'user'
 
 arm only has one calling convention (ARM Calling Convention), so **fastcall, **thiscall are all the same.
 Arguments: R0–R3. (stack the rest)
