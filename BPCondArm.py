@@ -9,6 +9,7 @@ base = idaapi.get_imagebase()
 call_addr+=base
 deref_vptr_addr+=base
 deref_obj_addr+=base
+objptr_addr+=base
 bp_addr = deref_obj_addr
 
 
@@ -185,6 +186,7 @@ def cast_vtable(object_struct_name, vtable_struct_name, vtable_addr, offset):
     vtable_name = get_fixed_name(vtable_addr, "vtable_")
     idaapi.set_name(vtable_addr, vtable_name, idaapi.SN_FORCE)
     append_cmt(vtable_addr, vtable_name, 1)
+    return struct_id
         
 
 
@@ -224,11 +226,11 @@ def do_logic():
         object_struct_name = "Obj_" + str(cnt)
         # cast vtable with `object_struct_name::vtable` 
         vtable_struct_name = object_struct_name + "::vtable"
-        cast_vtable(object_struct_name, vtable_struct_name, vtable_addr, vtable_offset)
+        vtable_struct_id = cast_vtable(object_struct_name, vtable_struct_name, vtable_addr, vtable_offset)
         # create object type
         object_c_struct = get_c_struct_str(object_struct_name, [ vtable_struct_name + " *vptr"])
-        struct_id = idc.SetLocalType(-1, object_c_struct, 0)
-        if struct_id != 0:
+        obj_struct_id = idc.SetLocalType(-1, object_c_struct, 0)
+        if obj_struct_id != 0:
             inc_obj_count()
         else:
             raise Exception(
@@ -238,6 +240,8 @@ def do_logic():
 
     else: # already typed, use existing object struct & vtable struct
         object_struct_name = extract_object_name(vtable_struct_name)
+        vtable_struct_id = idc.GetStrucIdByName(vtable_struct_name)
+        #obj_struct_id = idc.GetStrucIdByName(object_struct_name)
         if not object_struct_name:
             raise Exception(
                 "do_logic: extract_object_name failed with:\n" + vtable_struct_name
@@ -255,7 +259,7 @@ def do_logic():
             raise Exception("SetType to obj failed")
 
     idc.OpStroff(
-        idautils.DecodeInstruction(deref_vptr_addr, 1, struct_id)
+        idautils.DecodeInstruction(deref_vptr_addr, 1, vtable_struct_id)
     )
 
     # add xref to obj & vtable
