@@ -57,7 +57,7 @@ def extract_object_name(name):
 
 def get_fixed_name(address, prefix="", override=False):
     name = get_name(address)
-    if name[:4] == "sub_" or name == "loc_" or name == "":
+    if override or name[:4] == "sub_" or name == "loc_" or name == "off_"or name == "":
         addr_hex = hex(address - base)[2:-1]  # idc.SegStart(int(address))
         if addr_hex[-1] == "L":
             addr_hex = addr_hex[:-1]
