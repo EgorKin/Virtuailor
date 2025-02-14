@@ -258,7 +258,7 @@ def do_logic():
             print(hex(object_addr))
             raise Exception("SetType to obj failed")
     
-    pobj_name = get_fixed_name(objptr_addr, "p_"+object_struct_name.lower+"_")
+    pobj_name = get_fixed_name(objptr_addr, "p_"+object_struct_name.lower()+"_")
     if not idaapi.set_name(objptr_addr, pobj_name , idaapi.SN_FORCE):
         raise Exception("set_name pobj failed")
 
