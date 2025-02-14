@@ -55,7 +55,7 @@ def extract_object_name(name):
         return name[:sep_index]
     return ""
 
-def get_fixed_name(address, prefix=""):
+def get_fixed_name(address, prefix="", override=False):
     name = get_name(address)
     if name[:4] == "sub_" or name == "loc_" or name == "":
         addr_hex = hex(address - base)[2:-1]  # idc.SegStart(int(address))
@@ -253,7 +253,7 @@ def do_logic():
             print(hex(objptr_addr))
             raise Exception("SetType to objptr failed")
 
-        pobj_name = get_fixed_name(objptr_addr, "p_"+object_struct_name.lower()+"_")
+        pobj_name = get_fixed_name(objptr_addr, "p_"+object_struct_name.lower()+"_", override=True)
         if not idaapi.set_name(objptr_addr, pobj_name , idaapi.SN_FORCE):
             raise Exception("set_name pobj " + pobj_name + "to" + hex(objptr_addr) + " failed")
 
