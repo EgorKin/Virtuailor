@@ -258,9 +258,7 @@ def do_logic():
             print(hex(object_addr))
             raise Exception("SetType to obj failed")
 
-    idc.OpStroff(
-        idautils.DecodeInstruction(deref_vptr_addr, 1, vtable_struct_id)
-    )
+    idc.OpStroff(idautils.DecodeInstruction(deref_vptr_addr), 1, vtable_struct_id)
 
     # add xref to obj & vtable
     if not idc.add_dref(deref_obj_addr, object_addr, idc.XREF_USER|idc.dr_R):
