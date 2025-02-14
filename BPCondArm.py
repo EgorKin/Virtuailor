@@ -253,18 +253,18 @@ def do_logic():
             print(hex(objptr_addr))
             raise Exception("SetType to objptr failed")
 
+        pobj_name = get_fixed_name(objptr_addr, "p_"+object_struct_name.lower()+"_")
+        if not idaapi.set_name(objptr_addr, pobj_name , idaapi.SN_FORCE):
+            raise Exception("set_name pobj " + pobj_name + "to" + hex(objptr_addr) + " failed")
+
     if not idc.GetType(object_addr):
         if not idc.SetType(object_addr, object_struct_name):
             print(hex(object_addr))
             raise Exception("SetType to obj failed")
     
-    pobj_name = get_fixed_name(objptr_addr, "p_"+object_struct_name.lower()+"_")
-    if not idaapi.set_name(objptr_addr, pobj_name , idaapi.SN_FORCE):
-        raise Exception("set_name pobj failed")
-
-    obj_name = get_fixed_name(objptr_addr, object_struct_name.lower()+"_")
-    if not idaapi.set_name(object_addr, obj_name , idaapi.SN_FORCE):
-        raise Exception("set_name obj failed")
+        obj_name = get_fixed_name(object_addr, object_struct_name.lower()+"_")
+        if not idaapi.set_name(object_addr, obj_name , idaapi.SN_FORCE):
+            raise Exception("set_name obj " + obj_name + "to "+ hex(object_addr) +" failed")
 
     idc.OpStroff(idautils.DecodeInstruction(deref_vptr_addr), 1, vtable_struct_id)
 
