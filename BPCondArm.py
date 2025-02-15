@@ -169,7 +169,7 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr, of
             args = vfunc_type[arg_start_idx:vfunc_type.find(")")].split(",")
             if len(args) > 0:
                 args[0] = object_struct_name + " *this"
-                vfunc_type = vfunc_type[:arg_start_idx] + ",".join(args) + ")"
+                vfunc_type = vfunc_type[:arg_start_idx-1]+ " f(" + ",".join(args) + ")"
                 func_type_tuple = idc.parse_decl(vfunc_type, idc.PT_SILENT)
                 idc.apply_type(vfunc_addr, func_type_tuple)
         fp_decl = to_func_ptr_decl(vfunc_type, vfunc_name)
