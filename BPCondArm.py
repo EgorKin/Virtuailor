@@ -235,12 +235,14 @@ def do_logic():
         # TODO: optimize object count read write
         cnt = get_obj_count()
         object_struct_name = "Obj_" + str(cnt)
+        object_c_struct = get_c_struct_str(object_struct_name, ["void *vptr"])
+        obj_struct_id = idc.SetLocalType(-1, object_c_struct, 0)
         # cast vtable with `object_struct_name::vtable` 
         vtable_struct_name = object_struct_name + "::vtable"
         vtable_struct_id = create_and_cast_vtable(object_struct_name, vtable_struct_name, vtable_addr, vtable_offset)
         # create object type
         object_c_struct = get_c_struct_str(object_struct_name, [ vtable_struct_name + " *vptr"])
-        obj_struct_id = idc.SetLocalType(-1, object_c_struct, 0)
+        obj_struct_id = idc.SetLocalType(obj_struct_id, object_c_struct, 0)
         if obj_struct_id != 0:
             inc_obj_count()
         else:
