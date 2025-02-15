@@ -1,6 +1,5 @@
 call_addr, deref_vptr_addr, deref_obj_addr, objptr_addr, vtable_register, object_register, vtable_offset, object_offset = <<<call_addr>>>, <<<deref_vptr_addr>>>, <<<deref_obj_addr>>>, <<<objptr_addr>>>,"<<<vtable_register>>>", "<<<object_register>>>", <<<vtable_offset>>>, <<<object_offset>>>
 
-from os import path
 import idc
 import idaapi
 import idautils
@@ -13,15 +12,21 @@ objptr_addr+=base
 bp_addr = deref_obj_addr
 
 
-def append_cmt(ea, cmt, repeatable=0, add_repeated=False):
-    cur_cmt = idc.get_cmt(ea, repeatable)
-    if not add_repeated and cur_cmt and cmt in cur_cmt:
+def append_cmt(ea, cmt, repeatable=0, func=False, allow_duplicate=False):
+    if func:
+        cur_cmt = idc.get_func_cmt(ea, repeatable)
+    else:
+        cur_cmt = idc.get_cmt(ea, repeatable)
+    if not allow_duplicate and (cur_cmt and cmt in cur_cmt):
         return
     if cur_cmt:
         new_cmt = cur_cmt + "\n" + cmt
     else:
         new_cmt = cmt
-    idc.set_cmt(ea, new_cmt, repeatable)
+    if func:
+        idc.set_cmt(ea, new_cmt, repeatable)
+    else:
+        idc.set_func_cmt(ea, new_cmt, repeatable)
 
 def is_code(ea):
     return idc.is_code(idaapi.get_flags(ea))
@@ -55,9 +60,9 @@ def extract_object_name(name):
         return name[:sep_index]
     return ""
 
-def get_fixed_name(address, prefix="", override=False):
+def get_fixed_name(address, prefix=""):
     name = get_name(address)
-    if override or name[:4] == "sub_" or name == "loc_" or name == "off_"or name == "":
+    if name[:4] == "sub_" or name == "loc_" or name == "off_"or name == "":
         addr_hex = hex(address - base)[2:-1]  # idc.SegStart(int(address))
         if addr_hex[-1] == "L":
             addr_hex = addr_hex[:-1]
@@ -100,14 +105,23 @@ def get_c_struct_str(name, member_decls):
     struct += "};\n"
     return struct
 
-def get_func_ptr_type(vfunc_value, vfunc_name):
+def get_decompiled_func_type(vfunc_value):
     d = idaapi.decompile(vfunc_value)
-    t = idaapi.cfunc_type(d).dstr()
-    ptr_str = "(*" + vfunc_name + ")("
-    return t.replace("(", ptr_str, 1)
+    return idaapi.cfunc_type(d).dstr()
+
+def to_func_ptr_decl(func_type, func_name):
+    ptr_str = "(*" + func_name + ")("
+    return func_type.replace("(", ptr_str, 1)
+
+def rename_function(func_addr, func_name):
+    succ = idaapi.set_name(func_addr, func_name, idaapi.SN_FORCE)
+    if not succ:
+        raise Exception(
+            "rename_function to `"+ func_name +"` failed with " + hex(func_addr)
+        )
 
 def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr, offset):
-    v_func_offset = 0
+    vfunc_offset = 0
     prefix = object_struct_name + "::vfunc_"
     fp_decls = []
 
@@ -119,45 +133,48 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr, of
 
     while True:
         vfunc_addr = idc.read_dbg_dword(
-            vtable_addr + v_func_offset
-        )  # Use dword for 32-bit
+            vtable_addr + vfunc_offset
+        )
         if vfunc_addr == 0:
-            v_func_offset += 4
+            vfunc_offset += 4
         else:
             break
 
     while True:
         vfunc_addr = idc.read_dbg_dword(
-            vtable_addr + v_func_offset
-        )  # Use dword for 32-bit
+            vtable_addr + vfunc_offset
+        )
         if vfunc_addr == 0 or vfunc_addr >> 24 == 0xFF:
             #TODO: use Offset to Top component (negative offset) to find the end of the vtable
             break
 
         vfunc_addr = sub_one_if_thumb(vfunc_addr)
-        # try:
-        #    fix_arm_vtable(vtable_func_value)
-        # except:
-        #    pass
         vfunc_name = get_fixed_name(vfunc_addr, prefix)
-        if not vfunc_name:
-            raise Exception(
-                "GetFunctionName failed with " + hex(vfunc_addr)
-            )
-        succ = idaapi.set_name(vfunc_addr, vfunc_name, idaapi.SN_FORCE)
-        # currently use xref and method name link is enough
-        #idc.set_func_cmt(vfunc_addr, vfunc_name+" @ "+ vtable_name, 1)
-        fp_decl = get_func_ptr_type(vfunc_addr, vfunc_name)
+        vfunc_type = idc.get_type(vfunc_addr)
+        if vfunc_type: 
+            # assume already renamed
+            existing_obj_type = extract_object_name(vfunc_name)
+            if not existing_obj_type:
+                raise Exception("create_vtable_struct: extract_object_name failed with typed function:\n" + vfunc_name)
+            if object_struct_name != existing_obj_type:
+                append_cmt(vfunc_addr,object_struct_name, repeatable=0, func=True)
+        else: 
+            # assume also haven't renamed
+            rename_function(vfunc_addr, get_fixed_name(vfunc_addr, prefix))
+            # currently use xref and method name link is enough
+            #idc.set_func_cmt(vfunc_addr, vfunc_name+" @ "+ vtable_name, 1)
+            # cast vfunc
+            vfunc_type = get_decompiled_func_type(vfunc_addr)
+            arg_start_idx = vfunc_type.find("(")+1
+            args = vfunc_type[arg_start_idx:vfunc_type.find(")")].split(",")
+            if len(args) > 0:
+                args[0] = object_struct_name + " *this"
+                vfunc_type = vfunc_type[:arg_start_idx] + ",".join(args) + ")"
+                func_type_tuple = idc.parse_decl(vfunc_type, idc.PT_SILENT)
+                idc.apply_type(vfunc_addr, func_type_tuple)
+        fp_decl = to_func_ptr_decl(vfunc_type, vfunc_name)
         fp_decls.append(fp_decl)
-        #print(fp_decl, hex(vfunc_value))
-        # can have nullsub (void (), directly return) or method don't use this (with no arg)
-        # print("set func name " + vfunc_name + " at " + hex(vtable_func_value),succ)
-        # TODO: construct vtable struct with function type & function name
-        #err = idc.add_struc_member(
-        #    struct_name, vfunc_name, v_func_offset, idc.FF_DWRD, -1, 4
-        #)  # Use dword for 32-bit
-        # print("add_struc_member:",err==0)
-        v_func_offset += 4  # Use 4 bytes for 32-bit
+        vfunc_offset += 4  # Use 4 bytes for 32-bit
     
     # create c struct declaration with fp_decls
     vtable_c_struct = get_c_struct_str(vtable_struct_name, fp_decls)
@@ -170,18 +187,10 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr, of
     
 
 
-def cast_vtable(object_struct_name, vtable_struct_name, vtable_addr, offset):
-    # print("create_vtable_struct")
-    #struct_id = idc.add_struc(-1, struct_name, 0)
-    struct_id = idc.GetStrucIdByName(vtable_struct_name)
-    if struct_id == idc.BADADDR: # not created yet
-        struct_id = create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr, offset)
-    else: #already created, another vtable of the same type?
-        print("Warning: vtable struct already created, detected multiple vtables for the same object type")
-
-    succ = idc.SetType(vtable_addr, vtable_struct_name)
-    if not succ:
-        raise Exception("cast_vtable_struct: SetType failed")
+def create_and_cast_vtable(object_struct_name, vtable_struct_name, vtable_addr, offset):
+    struct_id = create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr, offset)
+    if not idc.SetType(vtable_addr, vtable_struct_name):
+        raise Exception("create_and_cast_vtable: SetType failed")
     # annotate vtable
     vtable_name = get_fixed_name(vtable_addr, "vtable_")
     idaapi.set_name(vtable_addr, vtable_name, idaapi.SN_FORCE)
@@ -226,7 +235,7 @@ def do_logic():
         object_struct_name = "Obj_" + str(cnt)
         # cast vtable with `object_struct_name::vtable` 
         vtable_struct_name = object_struct_name + "::vtable"
-        vtable_struct_id = cast_vtable(object_struct_name, vtable_struct_name, vtable_addr, vtable_offset)
+        vtable_struct_id = create_and_cast_vtable(object_struct_name, vtable_struct_name, vtable_addr, vtable_offset)
         # create object type
         object_c_struct = get_c_struct_str(object_struct_name, [ vtable_struct_name + " *vptr"])
         obj_struct_id = idc.SetLocalType(-1, object_c_struct, 0)
@@ -242,24 +251,29 @@ def do_logic():
         object_struct_name = extract_object_name(vtable_struct_name)
         vtable_struct_id = idc.GetStrucIdByName(vtable_struct_name)
         #obj_struct_id = idc.GetStrucIdByName(object_struct_name)
-        if not object_struct_name:
-            raise Exception(
-                "do_logic: extract_object_name failed with:\n" + vtable_struct_name
-            )
+        if not object_struct_name or not object_struct_name.startswith("Obj_"):
+            return
+            #raise Exception(
+            #    "do_logic: extract_object_name failed with:\n" + vtable_struct_name
+            #)
 
-    # annotate code (always first pass)
-    if not idc.GetType(objptr_addr):
+    # annotate code
+    existing_objptr_type = idc.GetType(objptr_addr)
+    if not existing_objptr_type:
         if not idc.SetType(objptr_addr, object_struct_name+"*"):
-            print(hex(objptr_addr))
+            #print(hex(objptr_addr))
             raise Exception("SetType to objptr failed")
 
-        pobj_name = get_fixed_name(objptr_addr, "p_"+object_struct_name.lower()+"_", override=True)
+        pobj_name = get_fixed_name(objptr_addr, "p_"+object_struct_name.lower()+"_")
         if not idaapi.set_name(objptr_addr, pobj_name , idaapi.SN_FORCE):
             raise Exception("set_name pobj " + pobj_name + "to" + hex(objptr_addr) + " failed")
+    else:
+        if not existing_objptr_type.startswith(object_struct_name):
+            append_cmt(objptr_addr, object_struct_name+"*", repeatable=1)
 
-    if not idc.GetType(object_addr):
-        if not idc.SetType(object_addr, object_struct_name):
-            print(hex(object_addr))
+    if not idc.GetType(object_addr): # objects only have one fixed type
+        if not idc.SetType(object_addr, object_struct_name): 
+            #print(hex(object_addr))
             raise Exception("SetType to obj failed")
     
         obj_name = get_fixed_name(object_addr, object_struct_name.lower()+"_")
@@ -268,7 +282,7 @@ def do_logic():
 
     idc.OpStroff(idautils.DecodeInstruction(deref_vptr_addr), 1, vtable_struct_id)
 
-    # add xref to obj & vtable
+    # add xref to obj & vtable (ida ignores duplicate xref and returns True)
     if not idc.add_dref(deref_obj_addr, object_addr, idc.XREF_USER|idc.dr_R):
         raise Exception(
             "xref failed to object at address:" + hex(deref_obj_addr) + " to " + hex(object_addr)
