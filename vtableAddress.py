@@ -229,6 +229,9 @@ def get_con2_var_or_num_arm(func_reg, call_addr):
                                 deref_obj_addr = cur_addr
                                 for _ in range(5):
                                     cur_addr = idc.PrevHead(cur_addr)
+                                    mnem = idc.GetMnem(cur_addr)
+                                    if mnem.startswith("BL"):
+                                        break
                                     for r in idautils.XrefsFrom(cur_addr):
                                         if r.type == idc.dr_R and r.user == 0:
                                             return (
