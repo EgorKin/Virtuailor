@@ -267,5 +267,6 @@ def write_vtable2file(call_addr, raw_opnd):
 
 
 def print_counter():
+    print("Total:" + str(sum(counter.values())))
     for key, value in counter.items():
-        print(key, value)
+        print(key + ": " + str(value))
