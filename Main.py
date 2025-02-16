@@ -67,9 +67,9 @@ def to_hex_str(num):
 
 if __name__ == "__main__":
     start_addr = (
-        0x20FE74  # idc.MinEA()  # You can change the virtual calls address range
+        idc.MinEA()  # 0x20FE74  # You can change the virtual calls address range
     )
-    end_addr = 0x20FE7A  # idc.MaxEA()
+    end_addr = idc.MaxEA()  # 0x20FE7A
     start_addr_str = hex(start_addr)
     end_addr_str = hex(end_addr)
     oldTo = idaapi.set_script_timeout(0)

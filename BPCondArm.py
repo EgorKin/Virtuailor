@@ -54,6 +54,12 @@ def append_cmt(ea, cmt, repeatable=0, func=False, allow_duplicate=False):
 def is_code(ea):
     return idc.is_code(idaapi.get_flags(ea))
 
+def is_func(ea):
+    f = idaapi.get_func(ea)
+    if f is not None:
+        return ea == f.start_ea
+    return False
+
 def is_register(offset):
     return offset[0] == "R"
 
@@ -131,8 +137,8 @@ def get_c_struct_str(name, member_decls):
     return struct
 
 
-def get_decompiled_func_type(vfunc_value):
-    d = idaapi.decompile(vfunc_value)
+def get_decompiled_func_type(vfunc_addr):
+    d = idaapi.decompile(vfunc_addr)
     return idaapi.cfunc_type(d).dstr()
 
 
@@ -188,30 +194,31 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr):
 
         vfunc_addr = sub_one_if_thumb(vfunc_addr)
         vfunc_name = get_fixed_name(vfunc_addr, prefix)
-        vfunc_type = idc.get_type(vfunc_addr)
-        if vfunc_type:
-            # assume already renamed
-            existing_obj_type = extract_object_name(vfunc_name)
-            if existing_obj_type and object_struct_name != existing_obj_type:
-                append_cmt(vfunc_addr, object_struct_name, repeatable=0, func=True)
-        else:
-            # assume also haven't renamed
-            rename_function(vfunc_addr, get_fixed_name(vfunc_addr, prefix))
-            # currently use xref and method name link is enough
-            # idc.set_func_cmt(vfunc_addr, vfunc_name+" @ "+ vtable_name, 1)
-            # cast vfunc
-            vfunc_type = get_decompiled_func_type(vfunc_addr)
-            arg_start_idx = vfunc_type.find("(") + 1
-            args = vfunc_type[arg_start_idx : vfunc_type.find(")")].split(",")
-            if len(args) > 0:
-                args[0] = object_struct_name + " *this"
-                vfunc_type = vfunc_type[:arg_start_idx] + ",".join(args) + ")"
-                vfunc_decl = (
-                    vfunc_type[: arg_start_idx - 1] + " f(" + ",".join(args) + ")"
-                )
-                #print(vfunc_decl)
-                func_type_tuple = idc.parse_decl(vfunc_decl, idc.PT_SILENT)
-                idc.apply_type(vfunc_addr, func_type_tuple)
+        if is_func(vfunc_addr):
+            vfunc_type = idc.get_type(vfunc_addr)
+            if vfunc_type:
+                # assume already renamed
+                existing_obj_type = extract_object_name(vfunc_name)
+                if existing_obj_type and object_struct_name != existing_obj_type:
+                    append_cmt(vfunc_addr, object_struct_name, repeatable=0, func=True)
+            else:
+                # assume also haven't renamed
+                rename_function(vfunc_addr, get_fixed_name(vfunc_addr, prefix))
+                # currently use xref and method name link is enough
+                # idc.set_func_cmt(vfunc_addr, vfunc_name+" @ "+ vtable_name, 1)
+                # cast vfunc
+                vfunc_type = get_decompiled_func_type(vfunc_addr)
+                arg_start_idx = vfunc_type.find("(") + 1
+                args = vfunc_type[arg_start_idx : vfunc_type.find(")")].split(",")
+                if len(args) > 0:
+                    args[0] = object_struct_name + " *this"
+                    vfunc_type = vfunc_type[:arg_start_idx] + ",".join(args) + ")"
+                    vfunc_decl = (
+                        vfunc_type[: arg_start_idx - 1] + " f(" + ",".join(args) + ")"
+                    )
+                    #print(vfunc_decl)
+                    func_type_tuple = idc.parse_decl(vfunc_decl, idc.PT_SILENT)
+                    idc.apply_type(vfunc_addr, func_type_tuple)
         # TODO: check if vfunc_name already in the list, use one more layer of ::
         if vfunc_name in decl_names:
             vfunc_name = get_repetition_name(vfunc_name, decl_names)
@@ -289,7 +296,7 @@ def do_logic():
     # .text:CAEDF13A LDR.W           R0, [R5,#0x154]
     # .text:CAEDF13E MOV             R1, R4
     # .text:CAEDF140 BLX             R2
-    if not is_code(vfunc_addr):
+    if not is_func(vfunc_addr):
         return
 
     # check whether vtable has been typed
