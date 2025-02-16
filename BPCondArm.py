@@ -1,5 +1,6 @@
 mode, call_addr, ref_objptr_addr, ref_vptr_addr, ref_vtable_addr = "<<<mode>>>", <<<call_addr>>>, <<<ref_objptr_addr>>>, <<<ref_vptr_addr>>>, <<<ref_vtable_addr>>>
-objptr_register, vptr_register, vtable_register, objptr_offset, vptr_offset, vtable_offset = "<<<objptr_register>>>", "<<<vptr_register>>>", "<<<vtable_register>>>", <<<objptr_offset>>>, <<<vptr_offset>>>, <<<vtable_offset>>>
+objptr_register, vptr_register, vtable_register = "<<<objptr_register>>>", "<<<vptr_register>>>", "<<<vtable_register>>>"
+objptr_offset, vptr_offset, vtable_offset = <<<objptr_offset>>>, <<<vptr_offset>>>, <<<vtable_offset>>>
 
 import idc
 import idaapi

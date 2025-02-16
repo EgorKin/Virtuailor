@@ -196,7 +196,7 @@ def get_con2_var_or_num_arm(func_reg, call_addr):
     ret = back_search_deref(
         idc.PrevHead(ref_vptr_addr),
         start_addr,
-        vtable_register,
+        vptr_register,
         offset_must_number=False,
     )
     if not ret:
