@@ -242,23 +242,21 @@ def get_addrs():
         objptr_addr = idc.GetRegValue(objptr_register) + (idc.GetRegValue(objptr_offset) if is_register(objptr_register) else int(objptr_offset))
         object_addr = idc.read_dbg_dword(objptr_addr) + vptr_offset
         vtable_addr = idc.read_dbg_dword(object_addr)
-        vfunc_addr = get_vfunc_addr(vtable_addr + vtable_offset)
+        vfunc_addr = get_vfunc_addr(vtable_addr, vtable_offset)
         return objptr_addr, object_addr, vtable_addr, vfunc_addr
     elif mode == "VPTR":
         object_addr = idc.GetRegValue(vptr_register) + vptr_offset
         vtable_addr = idc.read_dbg_dword(object_addr)
-        vfunc_addr = get_vfunc_addr(vtable_addr + vtable_offset)
+        vfunc_addr = get_vfunc_addr(vtable_addr, vtable_offset)
         return None, object_addr, vtable_addr, vfunc_addr
     else: # "VTABLE"
         vtable_addr = idc.GetRegValue(vtable_register)
-        vfunc_addr = get_vfunc_addr(vtable_addr + vtable_offset)
+        vfunc_addr = get_vfunc_addr(vtable_addr, vtable_offset)
         return None, None, vtable_addr, vfunc_addr
 
 
 def do_logic():
-    objptr_addr, object_addr, vtable_addr, vfunc_addr = get_addrs(
-        vptr_register, vptr_offset, vtable_offset
-    )
+    objptr_addr, object_addr, vtable_addr, vfunc_addr = get_addrs()
 
     # v_func_addr possibly invalid
     # .text:CAEDF134 LDR.W           R2, [R5,#0x150]
