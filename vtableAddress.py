@@ -242,9 +242,8 @@ ARG_NAMES = [
 ]
 
 
-def get_bp_condition(args):
-
-    cond = BP_COND_TEXT
+def get_bp_condition(mode, args):
+    cond = BP_COND_TEXT.replace("<<<mode>>>", mode)
     for key in ARG_NAMES:
         cond = cond.replace("<<<" + key + ">>>", str(args.get(key, None)))
     return cond
@@ -252,11 +251,11 @@ def get_bp_condition(args):
 
 def write_vtable2file(call_addr, raw_opnd):
     reg = raw_opnd
-    ret_code, args = get_con2_var_or_num_arm(reg, call_addr)
-    if not ret_code:
+    mode, args = get_con2_var_or_num_arm(reg, call_addr)
+    if not mode:
         return "", -1
 
-    bp_addr = args["ref_" + ret_code.lower() + "_addr"]
+    bp_addr = args["ref_" + mode.lower() + "_addr"]
     args["call_addr"] = call_addr
-    bp_cond = get_bp_condition(args)
+    bp_cond = get_bp_condition(mode, args)
     return bp_cond, bp_addr

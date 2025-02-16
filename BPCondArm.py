@@ -1,4 +1,5 @@
-call_addr, deref_vptr_addr, deref_obj_addr, objptr_addr, vtable_register, object_register, vtable_offset, object_offset = <<<call_addr>>>, <<<deref_vptr_addr>>>, <<<deref_obj_addr>>>, <<<objptr_addr>>>,"<<<vtable_register>>>", "<<<object_register>>>", <<<vtable_offset>>>, <<<object_offset>>>
+mode, call_addr, ref_objptr_addr, ref_vptr_addr, ref_vtable_addr = "<<<mode>>>", <<<call_addr>>>, <<<ref_objptr_addr>>>, <<<ref_vptr_addr>>>, <<<ref_vtable_addr>>>
+objptr_register, vptr_register, vtable_register, objptr_offset, vptr_offset, vtable_offset = "<<<objptr_register>>>", "<<<vptr_register>>>", "<<<vtable_register>>>", <<<objptr_offset>>>, <<<vptr_offset>>>, <<<vtable_offset>>>
 
 import idc
 import idaapi
@@ -6,10 +7,16 @@ import idautils
 
 base = idaapi.get_imagebase()
 call_addr+=base
-deref_vptr_addr+=base
-deref_obj_addr+=base
-objptr_addr+=base
-bp_addr = deref_obj_addr
+ref_objptr_addr+=base
+ref_vptr_addr+=base
+ref_vtable_addr+=base
+
+if mode == "OBJPTR":
+    bp_addr = ref_objptr_addr
+elif mode == "VPTR":
+    bp_addr = ref_vptr_addr
+elif mode == "VTABLE":
+    bp_addr = ref_vtable_addr
 
 
 def append_cmt(ea, cmt, repeatable=0, func=False, allow_duplicate=False):
@@ -216,7 +223,7 @@ def inc_obj_count():
 
 def do_logic():
     object_addr, vtable_addr, vfunc_addr = get_addrs(
-        object_register, object_offset, vtable_offset
+        vptr_register, vptr_offset, vtable_offset
     )
 
     # v_func_addr possibly invalid
@@ -285,16 +292,16 @@ def do_logic():
         if not idaapi.set_name(object_addr, obj_name , idaapi.SN_FORCE):
             raise Exception("set_name obj " + obj_name + "to "+ hex(object_addr) +" failed")
 
-    idc.OpStroff(idautils.DecodeInstruction(deref_vptr_addr), 1, vtable_struct_id)
+    idc.OpStroff(idautils.DecodeInstruction(ref_vptr_addr), 1, vtable_struct_id)
 
     # add xref to obj & vtable (ida ignores duplicate xref and returns True)
-    if not idc.add_dref(deref_obj_addr, object_addr, idc.XREF_USER|idc.dr_R):
+    if not idc.add_dref(ref_vtable_addr, object_addr, idc.XREF_USER|idc.dr_R):
         raise Exception(
-            "xref failed to object at address:" + hex(deref_obj_addr) + " to " + hex(object_addr)
+            "xref failed to object at address:" + hex(ref_vtable_addr) + " to " + hex(object_addr)
         )
-    if not idc.add_dref(deref_vptr_addr, vtable_addr+vtable_offset, idc.XREF_USER|idc.dr_R):
+    if not idc.add_dref(ref_vptr_addr, vtable_addr+vtable_offset, idc.XREF_USER|idc.dr_R):
         raise Exception(
-            "xref failed to vtable at address:" + hex(deref_vptr_addr) + " to " + hex(vtable_addr)
+            "xref failed to vtable at address:" + hex(ref_vptr_addr) + " to " + hex(vtable_addr)
         )
 
     if not idc.add_cref(
