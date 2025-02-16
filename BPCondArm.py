@@ -20,6 +20,15 @@ elif mode == "VPTR":
 elif mode == "VTABLE":
     bp_addr = ref_vtable_addr
 
+class ReadMemoryError(Exception):
+    pass
+
+def read_dword_checked(ea):
+    if ea is None:
+        raise ReadMemoryError("read_dword_checked: ea is None")
+    val = idc.read_dbg_dword(ea)
+    if val is None:
+        raise ReadMemoryError("read_dword_checked: read "+ str(ea) +" failed")
 
 def append_cmt(ea, cmt, repeatable=0, func=False, allow_duplicate=False):
     if func:
@@ -148,14 +157,14 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr):
     # method (i.e., classes that are abstract).
 
     while True:
-        vfunc_addr = idc.read_dbg_dword(vtable_addr + vfunc_offset)
+        vfunc_addr = read_dword_checked(vtable_addr + vfunc_offset)
         if vfunc_addr == 0:
             vfunc_offset += 4
         else:
             break
 
     while True:
-        vfunc_addr = idc.read_dbg_dword(vtable_addr + vfunc_offset)
+        vfunc_addr = read_dword_checked(vtable_addr + vfunc_offset)
         if vfunc_addr == 0 or vfunc_addr >> 24 == 0xFF:
             # TODO: use Offset to Top component (negative offset) to find the end of the vtable
             break
@@ -234,19 +243,19 @@ def inc_obj_count():
 
 def get_addrs():
     def get_vfunc_addr(vtable_addr, vtable_offset):
-        vfunc_addr_mem = idc.read_dbg_dword(vtable_addr + vtable_offset)
+        vfunc_addr_mem = read_dword_checked(vtable_addr + vtable_offset)
         vfunc_addr = sub_one_if_thumb(vfunc_addr_mem)
         return vfunc_addr
     
     if mode == "OBJPTR":
         objptr_addr = idc.GetRegValue(objptr_register) + (idc.GetRegValue(objptr_offset) if is_register(objptr_offset) else int(objptr_offset, 16))
-        object_addr = idc.read_dbg_dword(objptr_addr) + vptr_offset
-        vtable_addr = idc.read_dbg_dword(object_addr)
+        object_addr = read_dword_checked(objptr_addr) + vptr_offset
+        vtable_addr = read_dword_checked(object_addr)
         vfunc_addr = get_vfunc_addr(vtable_addr, vtable_offset)
         return objptr_addr, object_addr, vtable_addr, vfunc_addr
     elif mode == "VPTR":
         object_addr = idc.GetRegValue(vptr_register) + vptr_offset
-        vtable_addr = idc.read_dbg_dword(object_addr)
+        vtable_addr = read_dword_checked(object_addr)
         vfunc_addr = get_vfunc_addr(vtable_addr, vtable_offset)
         return None, object_addr, vtable_addr, vfunc_addr
     else: # "VTABLE"
@@ -362,6 +371,8 @@ try:
     # disable after cond executed
     # print("Disabling BP at:", hex(bp_addr + base))
     idaapi.enable_bpt(bp_addr, False)
+except ReadMemoryError: # comment out this to debug
+    pass
 except Exception as e:
     print(e)
     import traceback
