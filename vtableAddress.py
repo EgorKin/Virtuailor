@@ -130,6 +130,9 @@ def parse_arm_dereference(opnd):
     return register, offset
 
 
+CALLER_SAVED_REGS = ["R0", "R1", "R2", "R3", "R12"]
+
+
 def back_search_deref(start_addr, end_addr, target_reg, offset_must_number=True):
     """
     Also handle cases like this:
@@ -168,12 +171,17 @@ def back_search_deref(start_addr, end_addr, target_reg, offset_must_number=True)
                 target_reg = idc.GetOpnd(cur_addr, 1)
                 if target_reg not in REGS:
                     return None
+            elif (
+                mnem == "BL" or mnem == "BLX"
+            ) and target_reg not in CALLER_SAVED_REGS:
+                return None
         else:
             if mnem.startswith("STR") and idc.GetOpnd(cur_addr, 1) == tmp_stack_addr:
                 target_reg = idc.GetOpnd(cur_addr, 0)
                 tmp_stack_addr = None
 
         cur_addr = idc.PrevHead(cur_addr)
+    return None
 
 
 def get_con2_var_or_num_arm(func_reg, call_addr):

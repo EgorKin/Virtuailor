@@ -239,7 +239,7 @@ def get_addrs():
         return vfunc_addr
     
     if mode == "OBJPTR":
-        objptr_addr = idc.GetRegValue(objptr_register) + (idc.GetRegValue(objptr_offset) if is_register(objptr_offset) else int(objptr_offset))
+        objptr_addr = idc.GetRegValue(objptr_register) + (idc.GetRegValue(objptr_offset) if is_register(objptr_offset) else int(objptr_offset, 16))
         object_addr = idc.read_dbg_dword(objptr_addr) + vptr_offset
         vtable_addr = idc.read_dbg_dword(object_addr)
         vfunc_addr = get_vfunc_addr(vtable_addr, vtable_offset)
