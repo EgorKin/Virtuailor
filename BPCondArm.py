@@ -148,11 +148,24 @@ def rename_function(func_addr, func_name):
             "rename_function to `" + func_name + "` failed with " + hex(func_addr)
         )
 
+def get_repetition_name(func_name, exist_names):
+    parts = func_name.split("::")
+    for i in range(1, 50):
+        prefix = "_" + str(i)
+        parts.insert(-1, prefix)
+        new_name = "::".join(parts)
+        if new_name not in exist_names:
+            return new_name
+        parts.pop(-2)
+    raise Exception("get_repetition_name: 50 repeated function name reached")
+        
+
 
 def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr):
     vfunc_offset = 0
     prefix = object_struct_name + "::vfunc_"
     fp_decls = []
+    decl_names = []
 
     # skip initial 0x0 (somehow happens to libart.so)
     # https://alschwalm.com/blog/static/2016/12/17/reversing-c-virtual-functions/
@@ -199,6 +212,9 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr):
                 #print(vfunc_decl)
                 func_type_tuple = idc.parse_decl(vfunc_decl, idc.PT_SILENT)
                 idc.apply_type(vfunc_addr, func_type_tuple)
+        # TODO: check if vfunc_name already in the list, use one more layer of ::
+        if vfunc_name in decl_names:
+            vfunc_name = get_repetition_name(vfunc_name, decl_names)
         fp_decl = to_func_ptr_decl(vfunc_type, vfunc_name)
         fp_decls.append(fp_decl)
         vfunc_offset += 4  # Use 4 bytes for 32-bit
