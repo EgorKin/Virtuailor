@@ -232,17 +232,21 @@ def get_con2_var_or_num_arm(func_reg, call_addr):
                                     mnem = idc.GetMnem(cur_addr)
                                     if mnem.startswith("BL"):
                                         break
-                                    for r in idautils.XrefsFrom(cur_addr):
-                                        if r.type == idc.dr_R and r.user == 0:
-                                            return (
-                                                deref_vptr_addr,
-                                                deref_obj_addr,
-                                                r.to,
-                                                vtable_register,
-                                                obj_register,
-                                                vtable_offset,
-                                                obj_offset,
-                                            )
+                                    elif (
+                                        mnem.startswith("LDR")
+                                        and idc.GetOpnd(cur_addr, 0) == obj_register
+                                    ):
+                                        for r in idautils.XrefsFrom(cur_addr):
+                                            if r.type == idc.dr_R and r.user == 0:
+                                                return (
+                                                    deref_vptr_addr,
+                                                    deref_obj_addr,
+                                                    r.to,
+                                                    vtable_register,
+                                                    obj_register,
+                                                    vtable_offset,
+                                                    obj_offset,
+                                                )
                                 return None  # TODO
                         cur_addr = idc.PrevHead(cur_addr)
                     print(call_addr, "not after obj deref")
