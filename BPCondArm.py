@@ -90,17 +90,17 @@ def extract_object_name(name):
 
 def get_fixed_name(address, prefix=""):
     name = get_name(address)
-    #if (
-    #    name.startswith("sub_")
-    #    or name.startswith("off_")
-    #    or name.startswith("loc_")
-    #    or name == ""
-    #):
-    addr_hex = hex(address - base)[2:-1]  # idc.SegStart(int(address))
-    if addr_hex[-1] == "L":
-        addr_hex = addr_hex[:-1]
-    name = prefix + addr_hex
-    return name  # nullsub_ or already renamed
+    if (
+        name.startswith("sub_")
+        or name.startswith("off_")
+        or name.startswith("loc_")
+        or name == ""
+    ):
+        addr_hex = hex(address - base)[2:-1]  # idc.SegStart(int(address))
+        if addr_hex[-1] == "L":
+            addr_hex = addr_hex[:-1]
+        name = prefix + addr_hex
+    return name  # nullsub_, __cxa_pure_virtual, etc should not be renamed
 
 
 def add_comment_to_struct_members(struct_id, vtable_func_offset, start_address):
@@ -179,12 +179,7 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr):
         if vfunc_type:
             # assume already renamed
             existing_obj_type = extract_object_name(vfunc_name)
-            if not existing_obj_type:
-                raise Exception(
-                    "create_vtable_struct: extract_object_name failed with typed function:\n"
-                    + vfunc_name
-                )
-            if object_struct_name != existing_obj_type:
+            if existing_obj_type and object_struct_name != existing_obj_type:
                 append_cmt(vfunc_addr, object_struct_name, repeatable=0, func=True)
         else:
             # assume also haven't renamed
