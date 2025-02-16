@@ -256,7 +256,7 @@ def write_vtable2file(call_addr, raw_opnd):
     if not ret_code:
         return "", -1
 
-    bp_addr = args["ref" + ret_code.lower() + "_addr"]
+    bp_addr = args["ref_" + ret_code.lower() + "_addr"]
     args["call_addr"] = call_addr
     bp_cond = get_bp_condition(args)
     return bp_cond, bp_addr
