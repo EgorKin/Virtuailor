@@ -98,62 +98,12 @@ BP_COND_TEXT = read_bp_cond_text()
 assert BP_COND_TEXT != ""
 
 
-def get_local_var_value_64(loc_var_name):
-    frame = ida_frame.get_frame(idc.here())
-    loc_var = ida_struct.get_member_by_name(frame, loc_var_name)
-    loc_var_start = loc_var.soff
-    loc_var_ea = loc_var_start + idc.GetRegValue("RSP")
-    loc_var_value = idc.read_dbg_qword(
-        loc_var_ea
-    )  # in case the variable is 32bit, just use get_wide_dword() instead
-    return loc_var_value
-
-
-def get_con2_var_or_num_intel(func_reg, call_addr):
-    start_addr = idc.GetFunctionAttr(call_addr, idc.FUNCATTR_START)
-    cur_addr = idc.PrevHead(call_addr)
-    while cur_addr >= start_addr:
-        mnem = idc.GetMnem(cur_addr)
-        if (
-            mnem.startswith(ARCH_DICT["opcode"])
-            and idc.GetOpnd(cur_addr, 0) == func_reg
-        ):  # TODO lea ?
-            opnd2 = idc.GetOpnd(cur_addr, 1)
-            place = opnd2.find(ARCH_DICT["separator"])
-            if place != -1:  # if the function is not the first in the vtable
-                register = opnd2[opnd2.find("[") + 1 : place]
-                if opnd2.find("*") == -1:
-                    offset = opnd2[place + ARCH_DICT["val_offset"] : opnd2.find("]")]
-                else:
-                    offset = "*"
-                return register, offset, cur_addr
-            else:
-                offset = "0"
-                if opnd2.find("]") != -1:
-                    register = opnd2[opnd2.find("[") + 1 : opnd2.find("]")]
-                else:
-                    register = opnd2
-                return register, offset, cur_addr
-        elif mnem.startswith("call"):
-            intr_func_name = idc.GetOpnd(cur_addr, 0)
-            # In case the code has CFG -> ignores the function call before the virtual calls
-            if "guard_check_icall_fptr" not in intr_func_name:
-                if "nullsub" not in intr_func_name:
-                    # intr_func_name = idc.Demangle(intr_func_name, idc.GetLongPrm(idc.INF_SHORT_DN))
-                    print(
-                        "Warning! At address 0x%08x: The vtable assignment might be in another function (Maybe %s),"
-                        " could not place BP." % (call_addr, intr_func_name)
-                    )
-                cur_addr = start_addr
-        cur_addr = idc.PrevHead(cur_addr)
-    return "out of the function", "-1", cur_addr
-
-
 def parse_arm_dereference(opnd):
     """
     [R2,#0xC] -> R2, "0xC"
     [R2,#0xC]! -> R2, "0xC"
     [R2],#0xC -> R2
+    [R2,R3] -> R2, R3
     [R2] -> R2, "0"
     LDR.W           R0, [R5],#8 (only [R5] will be passed in)
     other format -> None, None
@@ -167,10 +117,11 @@ def parse_arm_dereference(opnd):
     sep_idx = stripped.find(",")
 
     if sep_idx != -1:
-        if stripped[sep_idx + 1] != "#":  # offset not constant (GOT call): [R1,R3]
-            return None, None
         register = stripped[:sep_idx]
-        offset = stripped[sep_idx + 2 :]
+        if stripped[sep_idx + 1] == "#":
+            offset = stripped[sep_idx + 2 :]
+        else:
+            offset = stripped[sep_idx + 1 :]  # [R1,R3]
     else:
         register = stripped
         offset = "0"
@@ -179,7 +130,7 @@ def parse_arm_dereference(opnd):
     return register, offset
 
 
-def get_con2_var_or_num_arm(func_reg, call_addr):
+def back_search_deref(start_addr, end_addr, target_reg, offset_must_number=True):
     """
     Also handle cases like this:
     .text:0020FE3A                 LDR             R2, [R1] (TODO: break here to type class object ptr R1)
@@ -195,137 +146,117 @@ def get_con2_var_or_num_arm(func_reg, call_addr):
     .text:0020FE54                 STR             R3, [SP,#0x98+var_84]
     .text:0020FE56                 BLX             R12
     """
-    start_addr = idc.GetFunctionAttr(call_addr, idc.FUNCATTR_START)
-    cur_addr = idc.PrevHead(call_addr)
+    cur_addr = start_addr
     tmp_stack_addr = None
-    while cur_addr >= start_addr:
+    while cur_addr >= end_addr:
         mnem = idc.GetMnem(cur_addr)
         if not tmp_stack_addr:
-            if mnem.startswith("LDR") and idc.GetOpnd(cur_addr, 0) == func_reg:
+            if mnem.startswith("LDR") and idc.GetOpnd(cur_addr, 0) == target_reg:
                 opnd2 = idc.GetOpnd(cur_addr, 1)
-                vtable_register, vtable_offset = parse_arm_dereference(opnd2)
-                if vtable_register is None:
+                base_register, offset = parse_arm_dereference(opnd2)
+                if base_register is None:  # unsupported deref
                     return None
-                elif (
-                    vtable_register == "SP"
-                ):  # load virtual func from stack, lookup happens before
+                elif base_register == "SP":
+                    # load virtual func from stack, lookup happens before
                     tmp_stack_addr = opnd2
-                else:  # found!, track object ptr dereference
-                    deref_vptr_addr = cur_addr
-                    cur_addr = idc.PrevHead(cur_addr)
-                    # FIXME: currently object deref must exactly before vtable deref
-                    #        a while is not safe enough
-                    while cur_addr >= start_addr:
-                        mnem = idc.GetMnem(cur_addr)
-                        if (
-                            mnem.startswith("LDR")
-                            and idc.GetOpnd(cur_addr, 0) == vtable_register
-                        ):
-                            opnd2 = idc.GetOpnd(cur_addr, 1)
-                            obj_register, obj_offset = parse_arm_dereference(opnd2)
-                            if obj_register is None:
-                                return None
-                            else:
-                                deref_obj_addr = cur_addr
-                                for _ in range(5):
-                                    cur_addr = idc.PrevHead(cur_addr)
-                                    mnem = idc.GetMnem(cur_addr)
-                                    if mnem.startswith("BL"):
-                                        break
-                                    elif (
-                                        mnem.startswith("LDR")
-                                        and idc.GetOpnd(cur_addr, 0) == obj_register
-                                    ):
-                                        for r in idautils.XrefsFrom(cur_addr):
-                                            if r.type == idc.dr_R and r.user == 0:
-                                                return (
-                                                    deref_vptr_addr,
-                                                    deref_obj_addr,
-                                                    r.to,
-                                                    vtable_register,
-                                                    obj_register,
-                                                    vtable_offset,
-                                                    obj_offset,
-                                                )
-                                return None  # TODO
-                        cur_addr = idc.PrevHead(cur_addr)
-                    print(call_addr, "not after obj deref")
-                    return None
+                else:
+                    if offset_must_number and offset[0] == "R":
+                        return None
+                    return cur_addr, base_register, offset
 
-            elif mnem.startswith("MOV") and idc.GetOpnd(cur_addr, 0) == func_reg:
-                func_reg = idc.GetOpnd(cur_addr, 1)
-                if func_reg not in REGS:
+            elif mnem.startswith("MOV") and idc.GetOpnd(cur_addr, 0) == target_reg:
+                target_reg = idc.GetOpnd(cur_addr, 1)
+                if target_reg not in REGS:
                     return None
         else:
             if mnem.startswith("STR") and idc.GetOpnd(cur_addr, 1) == tmp_stack_addr:
-                func_reg = idc.GetOpnd(cur_addr, 0)
+                target_reg = idc.GetOpnd(cur_addr, 0)
                 tmp_stack_addr = None
 
         cur_addr = idc.PrevHead(cur_addr)
-    return None
+
+
+def get_con2_var_or_num_arm(func_reg, call_addr):
+    start_addr = idc.GetFunctionAttr(call_addr, idc.FUNCATTR_START)
+    ret = back_search_deref(idc.PrevHead(call_addr), start_addr, func_reg)
+    if not ret:
+        return None, None
+    ref_vtable_addr, vtable_register, vtable_offset = ret
+    ret = back_search_deref(idc.PrevHead(ref_vtable_addr), start_addr, vtable_register)
+    if not ret:
+        return (
+            "VTABLE",
+            {
+                "ref_vtable_addr": ref_vtable_addr,
+                "vtable_register": vtable_register,
+                "vtable_offset": vtable_offset,
+            },
+        )
+    ref_vptr_addr, vptr_register, vptr_offset = ret
+    ret = back_search_deref(
+        idc.PrevHead(ref_vtable_addr),
+        start_addr,
+        vtable_register,
+        offset_must_number=False,
+    )
+    if not ret:
+        return (
+            "VPTR",
+            {
+                "ref_vptr_addr": ref_vptr_addr,
+                "ref_vtable_addr": ref_vtable_addr,
+                "vptr_register": vptr_register,
+                "vtable_register": vtable_register,
+                "vptr_offset": vptr_offset,
+                "vtable_offset": vtable_offset,
+            },
+        )
+    ref_objptr_addr, objptr_register, objptr_offset = ret  # offset can be register
+    return (
+        "OBJPTR",
+        {
+            "ref_objptr_addr": ref_objptr_addr,
+            "ref_vptr_addr": ref_vptr_addr,
+            "ref_vtable_addr": ref_vtable_addr,
+            "objptr_register": objptr_register,
+            "vptr_register": vptr_register,
+            "vtable_register": vtable_register,
+            "objptr_offset": objptr_offset,
+            "vptr_offset": vptr_offset,
+            "vtable_offset": vtable_offset,
+        },
+    )
     # return "out of the function", "-1", cur_addr
 
 
-# TODO: fix for load from memory
-# def get_con2_var_or_num(call_reg, call_addr):
-#    if arch == "Intel":
-#        return get_con2_var_or_num_intel(call_reg, call_addr)
-#    else:
-#        return get_con2_var_or_num_arm(call_reg, call_addr)
+ARG_NAMES = [
+    "ref_objptr_addr",
+    "ref_vptr_addr",
+    "ref_vtable_addr",
+    "objptr_register",
+    "vptr_register",
+    "vtable_register",
+    "objptr_offset",
+    "vptr_offset",
+    "vtable_offset",
+]
 
 
-def get_bp_condition(
-    call_addr,
-    deref_vptr_addr,
-    deref_obj_addr,
-    objptr_addr,
-    vtable_register,
-    object_register,
-    vtable_offset,
-    object_offset,
-):
+def get_bp_condition(args):
 
-    return (
-        BP_COND_TEXT.replace("<<<call_addr>>>", str(call_addr))
-        .replace("<<<deref_vptr_addr>>>", str(deref_vptr_addr))
-        .replace("<<<deref_obj_addr>>>", str(deref_obj_addr))
-        .replace("<<<objptr_addr>>>", str(objptr_addr))
-        .replace("<<<vtable_register>>>", vtable_register)
-        .replace("<<<object_register>>>", object_register)
-        .replace("<<<vtable_offset>>>", vtable_offset)
-        .replace("<<<object_offset>>>", object_offset)
-    )
+    cond = BP_COND_TEXT
+    for key in ARG_NAMES:
+        cond = cond.replace("<<<" + key + ">>>", str(args.get(key, None)))
+    return cond
 
 
 def write_vtable2file(call_addr, raw_opnd):
-    """
-     :param start_addr: The start address of the virtual call
-    :return: The break point condition and the break point address
-    """
-    # raw_opnd = idc.GetOpnd(start_addr, 0)
     reg = raw_opnd
-    ret = get_con2_var_or_num_arm(reg, call_addr)
-    if not ret:
+    ret_code, args = get_con2_var_or_num_arm(reg, call_addr)
+    if not ret_code:
         return "", -1
-    (
-        deref_vptr_addr,
-        deref_obj_addr,
-        objptr_addr,
-        vtable_register,
-        object_register,
-        vtable_offset,
-        object_offset,
-    ) = ret
-    if vtable_register in REGS:
-        cond = get_bp_condition(
-            call_addr,
-            deref_vptr_addr,
-            deref_obj_addr,
-            objptr_addr,
-            vtable_register,
-            object_register,
-            vtable_offset,
-            object_offset,
-        )
-        return cond, deref_obj_addr
-    return "", -1
+
+    bp_addr = args["ref" + ret_code.lower() + "_addr"]
+    args["call_addr"] = call_addr
+    bp_cond = get_bp_condition(args)
+    return bp_cond, bp_addr
