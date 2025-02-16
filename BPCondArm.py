@@ -1,7 +1,7 @@
 mode = "<<<mode>>>"
 call_addr, ref_objptr_addr, ref_vptr_addr, ref_vtable_addr = <<<call_addr>>>, <<<ref_objptr_addr>>>, <<<ref_vptr_addr>>>, <<<ref_vtable_addr>>>
 objptr_register, vptr_register, vtable_register = "<<<objptr_register>>>", "<<<vptr_register>>>", "<<<vtable_register>>>"
-objptr_offset, vptr_offset, vtable_offset = <<<objptr_offset>>>, <<<vptr_offset>>>, <<<vtable_offset>>>
+objptr_offset, vptr_offset, vtable_offset = "<<<objptr_offset>>>", <<<vptr_offset>>>, <<<vtable_offset>>>
 
 import idc
 import idaapi
@@ -239,7 +239,7 @@ def get_addrs():
         return vfunc_addr
     
     if mode == "OBJPTR":
-        objptr_addr = idc.GetRegValue(objptr_register) + (idc.GetRegValue(objptr_offset) if is_register(objptr_register) else objptr_offset)
+        objptr_addr = idc.GetRegValue(objptr_register) + (idc.GetRegValue(objptr_offset) if is_register(objptr_register) else int(objptr_offset))
         object_addr = idc.read_dbg_dword(objptr_addr) + vptr_offset
         vtable_addr = idc.read_dbg_dword(object_addr)
         vfunc_addr = get_vfunc_addr(vtable_addr + vtable_offset)
