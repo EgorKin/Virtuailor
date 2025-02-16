@@ -215,6 +215,7 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr):
         # TODO: check if vfunc_name already in the list, use one more layer of ::
         if vfunc_name in decl_names:
             vfunc_name = get_repetition_name(vfunc_name, decl_names)
+        decl_names.append(vfunc_name)
         fp_decl = to_func_ptr_decl(vfunc_type, vfunc_name)
         fp_decls.append(fp_decl)
         vfunc_offset += 4  # Use 4 bytes for 32-bit
