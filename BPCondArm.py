@@ -41,8 +41,8 @@ def append_cmt(ea, cmt, repeatable=0, func=False, allow_duplicate=False):
 def is_code(ea):
     return idc.is_code(idaapi.get_flags(ea))
 
-def is_register(op):
-    return op[0] == "R"
+def is_register(offset):
+    return offset[0] == "R"
 
 def make_func(ea):
     code_err = idc.MakeCode(ea)
@@ -239,7 +239,7 @@ def get_addrs():
         return vfunc_addr
     
     if mode == "OBJPTR":
-        objptr_addr = idc.GetRegValue(objptr_register) + (idc.GetRegValue(objptr_offset) if is_register(objptr_register) else int(objptr_offset))
+        objptr_addr = idc.GetRegValue(objptr_register) + (idc.GetRegValue(objptr_offset) if is_register(objptr_offset) else int(objptr_offset))
         object_addr = idc.read_dbg_dword(objptr_addr) + vptr_offset
         vtable_addr = idc.read_dbg_dword(object_addr)
         vfunc_addr = get_vfunc_addr(vtable_addr, vtable_offset)
