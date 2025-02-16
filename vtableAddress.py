@@ -230,6 +230,7 @@ def get_con2_var_or_num_arm(func_reg, call_addr):
 
 
 ARG_NAMES = [
+    "call_addr",
     "ref_objptr_addr",
     "ref_vptr_addr",
     "ref_vtable_addr",
