@@ -29,6 +29,7 @@ def read_dword_checked(ea):
     val = idc.read_dbg_dword(ea)
     if val is None:
         raise ReadMemoryError("read_dword_checked: read "+ str(ea) +" failed")
+    return val
 
 def append_cmt(ea, cmt, repeatable=0, func=False, allow_duplicate=False):
     if func:
