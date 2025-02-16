@@ -87,16 +87,16 @@ def extract_object_name(name):
 
 def get_fixed_name(address, prefix=""):
     name = get_name(address)
-    if (
-        name.startswith("sub_")
-        or name.startswith("off_")
-        or name.startswith("loc_")
-        or name == ""
-    ):
-        addr_hex = hex(address - base)[2:-1]  # idc.SegStart(int(address))
-        if addr_hex[-1] == "L":
-            addr_hex = addr_hex[:-1]
-        name = prefix + addr_hex
+    #if (
+    #    name.startswith("sub_")
+    #    or name.startswith("off_")
+    #    or name.startswith("loc_")
+    #    or name == ""
+    #):
+    addr_hex = hex(address - base)[2:-1]  # idc.SegStart(int(address))
+    if addr_hex[-1] == "L":
+        addr_hex = addr_hex[:-1]
+    name = prefix + addr_hex
     return name  # nullsub_ or already renamed
 
 
