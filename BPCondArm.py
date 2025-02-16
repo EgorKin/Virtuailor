@@ -219,6 +219,9 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr):
                     #print(vfunc_decl)
                     func_type_tuple = idc.parse_decl(vfunc_decl, idc.PT_SILENT)
                     idc.apply_type(vfunc_addr, func_type_tuple)
+        else:
+            vfunc_type = "void ()"
+            print("Filling vtable function with "+ vfunc_type +" at " + hex(vfunc_addr))
         # TODO: check if vfunc_name already in the list, use one more layer of ::
         if vfunc_name in decl_names:
             vfunc_name = get_repetition_name(vfunc_name, decl_names)
