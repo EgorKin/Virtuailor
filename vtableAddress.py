@@ -250,13 +250,22 @@ def get_bp_condition(mode, args):
     return cond
 
 
+counter = {"OBJPTR": 0, "VPTR": 0, "VTABLE": 0}
+
+
 def write_vtable2file(call_addr, raw_opnd):
     reg = raw_opnd
     mode, args = get_con2_var_or_num_arm(reg, call_addr)
     if not mode:
         return "", -1
 
+    counter[mode] += 1
     bp_addr = args["ref_" + mode.lower() + "_addr"]
     args["call_addr"] = call_addr
     bp_cond = get_bp_condition(mode, args)
     return bp_cond, bp_addr
+
+
+def print_counter():
+    for key, value in counter.items():
+        print(key, value)

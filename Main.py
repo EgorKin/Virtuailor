@@ -80,8 +80,7 @@ if __name__ == "__main__":
     )
     gui.exec_()
     if gui.start_line.text != "banana":
-        print("Virtuailor - Started")
         add_bp_to_virtual_calls(
             int(gui.start_line.text(), 16), int(gui.stop_line.text(), 16)
         )
-        print("Virtuailor - Finished")
+        vtableAddress.print_counter()
