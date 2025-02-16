@@ -9,15 +9,18 @@ import idautils
 
 base = idaapi.get_imagebase()
 call_addr += base
-ref_objptr_addr += base
-ref_vptr_addr += base
-ref_vtable_addr += base
 
 if mode == "OBJPTR":
+    ref_objptr_addr += base
+    ref_vptr_addr += base
+    ref_vtable_addr += base
     bp_addr = ref_objptr_addr
 elif mode == "VPTR":
+    ref_vptr_addr += base
+    ref_vtable_addr += base
     bp_addr = ref_vptr_addr
 elif mode == "VTABLE":
+    ref_vtable_addr += base
     bp_addr = ref_vtable_addr
 
 class ReadMemoryError(Exception):
