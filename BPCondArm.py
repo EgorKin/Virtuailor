@@ -136,7 +136,7 @@ def rename_function(func_addr, func_name):
         )
 
 
-def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr, offset):
+def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr):
     vfunc_offset = 0
     prefix = object_struct_name + "::vfunc_"
     fp_decls = []
@@ -203,9 +203,9 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr, of
     return struct_id
 
 
-def create_and_cast_vtable(object_struct_name, vtable_struct_name, vtable_addr, offset):
+def create_and_cast_vtable(object_struct_name, vtable_struct_name, vtable_addr):
     struct_id = create_vtable_struct(
-        object_struct_name, vtable_struct_name, vtable_addr, offset
+        object_struct_name, vtable_struct_name, vtable_addr
     )
     if not idc.SetType(vtable_addr, vtable_struct_name):
         raise Exception("create_and_cast_vtable: SetType failed")
@@ -232,17 +232,31 @@ def inc_obj_count():
         f.truncate()
 
 
-def get_addrs(obj_reg, obj_off, vtable_off):
-    obj_addr = idc.GetRegValue(obj_reg) + obj_off
-    vtable_addr = idc.read_dbg_dword(obj_addr)
-    p_vfunc_addr = vtable_addr + vtable_off
-    vfunc_addr = idc.read_dbg_dword(p_vfunc_addr)
-    vfunc_addr = sub_one_if_thumb(vfunc_addr)
-    return obj_addr, vtable_addr, vfunc_addr
+def get_addrs():
+    def get_vfunc_addr(vtable_addr, vtable_offset):
+        vfunc_addr_mem = idc.read_dbg_dword(vtable_addr + vtable_offset)
+        vfunc_addr = sub_one_if_thumb(vfunc_addr_mem)
+        return vfunc_addr
+    
+    if mode == "OBJPTR":
+        objptr_addr = idc.GetRegValue(objptr_register) + (idc.GetRegValue(objptr_offset) if is_register(objptr_register) else objptr_offset)
+        object_addr = idc.read_dbg_dword(objptr_addr) + vptr_offset
+        vtable_addr = idc.read_dbg_dword(object_addr)
+        vfunc_addr = get_vfunc_addr(vtable_addr + vtable_offset)
+        return objptr_addr, object_addr, vtable_addr, vfunc_addr
+    elif mode == "VPTR":
+        object_addr = idc.GetRegValue(vptr_register) + vptr_offset
+        vtable_addr = idc.read_dbg_dword(object_addr)
+        vfunc_addr = get_vfunc_addr(vtable_addr + vtable_offset)
+        return None, object_addr, vtable_addr, vfunc_addr
+    else: # "VTABLE"
+        vtable_addr = idc.GetRegValue(vtable_register)
+        vfunc_addr = get_vfunc_addr(vtable_addr + vtable_offset)
+        return None, None, vtable_addr, vfunc_addr
 
 
 def do_logic():
-    object_addr, vtable_addr, vfunc_addr = get_addrs(
+    objptr_addr, object_addr, vtable_addr, vfunc_addr = get_addrs(
         vptr_register, vptr_offset, vtable_offset
     )
 
@@ -267,7 +281,7 @@ def do_logic():
         # cast vtable with `object_struct_name::vtable`
         vtable_struct_name = object_struct_name + "::vtable"
         vtable_struct_id = create_and_cast_vtable(
-            object_struct_name, vtable_struct_name, vtable_addr, vtable_offset
+            object_struct_name, vtable_struct_name, vtable_addr
         )
         # create object type
         object_c_struct = get_c_struct_str(
@@ -291,44 +305,46 @@ def do_logic():
             # )
 
     # annotate code
-    existing_objptr_type = idc.GetType(objptr_addr)
-    if not existing_objptr_type:
-        if not idc.SetType(objptr_addr, object_struct_name + "*"):
-            # print(hex(objptr_addr))
-            raise Exception("SetType to objptr failed")
+    if objptr_addr:
+        existing_objptr_type = idc.GetType(objptr_addr)
+        if not existing_objptr_type:
+            if not idc.SetType(objptr_addr, object_struct_name + "*"):
+                # print(hex(objptr_addr))
+                raise Exception("SetType to objptr failed")
 
-        pobj_name = get_fixed_name(objptr_addr, "p_" + object_struct_name.lower() + "_")
-        if not idaapi.set_name(objptr_addr, pobj_name, idaapi.SN_FORCE):
-            raise Exception(
-                "set_name pobj " + pobj_name + "to" + hex(objptr_addr) + " failed"
-            )
-    else:
-        if not existing_objptr_type.startswith(object_struct_name):
-            append_cmt(objptr_addr, object_struct_name + "*", repeatable=1)
+            pobj_name = get_fixed_name(objptr_addr, "p_" + object_struct_name.lower() + "_")
+            if not idaapi.set_name(objptr_addr, pobj_name, idaapi.SN_FORCE):
+                raise Exception(
+                    "set_name pobj " + pobj_name + "to" + hex(objptr_addr) + " failed"
+                )
+        else:
+            if not existing_objptr_type.startswith(object_struct_name):
+                append_cmt(objptr_addr, object_struct_name + "*", repeatable=1)
 
-    if not idc.GetType(object_addr):  # objects only have one fixed type
-        if not idc.SetType(object_addr, object_struct_name):
-            # print(hex(object_addr))
-            raise Exception("SetType to obj failed")
+    if object_addr:
+        if not idc.GetType(object_addr):  # objects only have one fixed type
+            if not idc.SetType(object_addr, object_struct_name):
+                # print(hex(object_addr))
+                raise Exception("SetType to obj failed")
 
-        obj_name = get_fixed_name(object_addr, object_struct_name.lower() + "_")
-        if not idaapi.set_name(object_addr, obj_name, idaapi.SN_FORCE):
-            raise Exception(
-                "set_name obj " + obj_name + "to " + hex(object_addr) + " failed"
-            )
+            obj_name = get_fixed_name(object_addr, object_struct_name.lower() + "_")
+            if not idaapi.set_name(object_addr, obj_name, idaapi.SN_FORCE):
+                raise Exception(
+                    "set_name obj " + obj_name + "to " + hex(object_addr) + " failed"
+                )
 
-    idc.OpStroff(idautils.DecodeInstruction(ref_vptr_addr), 1, vtable_struct_id)
+    idc.OpStroff(idautils.DecodeInstruction(ref_vtable_addr), 1, vtable_struct_id)
 
     # add xref to obj & vtable (ida ignores duplicate xref and returns True)
-    if not idc.add_dref(ref_vtable_addr, object_addr, idc.XREF_USER | idc.dr_R):
+    if object_addr and not idc.add_dref(ref_vptr_addr, object_addr, idc.XREF_USER | idc.dr_R):
         raise Exception(
             "xref failed to object at address:"
-            + hex(ref_vtable_addr)
+            + hex(ref_vptr_addr)
             + " to "
             + hex(object_addr)
         )
     if not idc.add_dref(
-        ref_vptr_addr, vtable_addr + vtable_offset, idc.XREF_USER | idc.dr_R
+        ref_vtable_addr, vtable_addr + vtable_offset, idc.XREF_USER | idc.dr_R
     ):
         raise Exception(
             "xref failed to vtable at address:"

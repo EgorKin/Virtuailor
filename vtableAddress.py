@@ -244,9 +244,9 @@ ARG_NAMES = [
 
 
 def get_bp_condition(mode, args):
-    cond = BP_COND_TEXT.replace("<<<mode>>>", mode)
+    cond = BP_COND_TEXT.replace("<<<mode>>>", mode, 1)
     for key in ARG_NAMES:
-        cond = cond.replace("<<<" + key + ">>>", str(args.get(key, None)))
+        cond = cond.replace("<<<" + key + ">>>", str(args.get(key, None)), 1)
     return cond
 
 
