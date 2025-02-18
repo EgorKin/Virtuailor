@@ -246,6 +246,8 @@ def create_and_cast_vtable(object_struct_name, vtable_struct_name, vtable_addr):
     struct_id = create_vtable_struct(
         object_struct_name, vtable_struct_name, vtable_addr
     )
+    t = idc.GetType(vtable_addr)
+    print("before 2: vtable type", t)
     ret = idc.SetType(vtable_addr, vtable_struct_name) # TODO: fix this by rerun
     print(ret)
     if not ret:
@@ -313,6 +315,7 @@ def do_logic():
 
     # check whether vtable has been typed
     vtable_struct_name = idc.GetType(vtable_addr)
+    print("before: vtable type", vtable_struct_name)
     if not vtable_struct_name:  # create vtable struct & object struct
         # create object name first
         # TODO: optimize object count read write
