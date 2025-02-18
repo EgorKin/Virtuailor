@@ -305,9 +305,7 @@ def do_logic():
     # .text:CAEDF13E MOV             R1, R4
     # .text:CAEDF140 BLX             R2
     
-    #if not is_func(vfunc_addr):
-    #    return
-    if not is_vtable_addr(vtable_addr) or get_name(vfunc_addr, False).startswith("_Z"):
+    if not is_vtable_addr(vtable_addr) or not is_func(vfunc_addr) or get_name(vfunc_addr, False).startswith("_Z"):
         # TODO: still do some annotation
         return
 
