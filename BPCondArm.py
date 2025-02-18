@@ -339,7 +339,7 @@ def do_logic():
             object_struct_name, [vtable_struct_name + " *vptr"]
         )
         for _ in range(5):
-            ret = idc.SetLocalType(obj_struct_id, "", 0)
+            ret = idc.SetLocalType(obj_struct_id, None, 0)
             if ret:
                 break
             else:
@@ -420,8 +420,8 @@ try:
     # disable after cond executed
     # print("Disabling BP at:", hex(bp_addr + base))
     idaapi.enable_bpt(bp_addr, False)
-except (ReadMemoryError, EmptyVtableError): # comment out this to debug
-    pass
+except (ReadMemoryError, EmptyVtableError) as e: # comment out this to debug
+    print(e)
 except Exception as e:
     print(e)
     import traceback
