@@ -2,10 +2,10 @@ mode = "<<<mode>>>"
 call_addr, ref_objptr_addr, ref_vptr_addr, ref_vtable_addr = <<<call_addr>>>, <<<ref_objptr_addr>>>, <<<ref_vptr_addr>>>, <<<ref_vtable_addr>>>
 objptr_register, vptr_register, vtable_register = "<<<objptr_register>>>", "<<<vptr_register>>>", "<<<vtable_register>>>"
 objptr_offset, vptr_offset, vtable_offset = "<<<objptr_offset>>>", <<<vptr_offset>>>, <<<vtable_offset>>>
-vtable_addr_ranges = <<<vtable_addr_ranges>>>
+relro_addr_ranges = <<<vtable_addr_ranges>>>
 
-def is_vtable_addr(ea):
-    for r in vtable_addr_ranges:
+def is_relro_addr(ea):
+    for r in relro_addr_ranges:
         if ea >= r[0] and ea < r[1]:
             return True
     return False
@@ -16,7 +16,7 @@ import idautils
 
 base = idaapi.get_imagebase()
 call_addr += base
-vtable_addr_ranges = [(st+base,ed+base) for st, ed in vtable_addr_ranges]
+relro_addr_ranges = [(st+base,ed+base) for st, ed in relro_addr_ranges]
 
 if mode == "OBJPTR":
     ref_objptr_addr += base
@@ -246,7 +246,9 @@ def create_and_cast_vtable(object_struct_name, vtable_struct_name, vtable_addr):
     struct_id = create_vtable_struct(
         object_struct_name, vtable_struct_name, vtable_addr
     )
-    if not idc.SetType(vtable_addr, vtable_struct_name): # TODO: fix this by rerun
+    ret = idc.SetType(vtable_addr, vtable_struct_name) # TODO: fix this by rerun
+    print(ret)
+    if not ret:
         t = idc.GetType(vtable_addr)
         raise Exception("create_and_cast_vtable: SetType failed at "+ hex(vtable_addr) +" from "+ str(t) +" to "+vtable_struct_name)
     # annotate vtable
@@ -305,7 +307,7 @@ def do_logic():
     # .text:CAEDF13E MOV             R1, R4
     # .text:CAEDF140 BLX             R2
     
-    if not is_vtable_addr(vtable_addr) or not is_func(vfunc_addr) or get_name(vfunc_addr, False).startswith("_Z"):
+    if not is_relro_addr(vtable_addr) or not is_func(vfunc_addr) or get_name(vfunc_addr, False).startswith("_Z"):
         # TODO: still do some annotation
         return
 
