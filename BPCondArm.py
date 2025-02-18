@@ -336,12 +336,10 @@ def do_logic():
                 object_struct_name, vtable_struct_name, vtable_addr
             )
         except (ReadMemoryError, EmptyVtableError):
-            print("object_struct_id", object_struct_id)
             if idc.SetLocalType(object_struct_id, "", 0):
-                print("SetLocalType empty success")
                 object_struct_id = None
             else:
-                print("SetLocalType empty failed")
+                raise Exception("SetLocalType empty failed")
             return
         # create object type
         object_c_struct = get_c_struct_str(
@@ -423,6 +421,7 @@ try:
     # disable after cond executed
     # print("Disabling BP at:", hex(bp_addr + base))
     idaapi.enable_bpt(bp_addr, False)
+# bug: global not working here
 #except (ReadMemoryError, EmptyVtableError) as e: # comment out this to debug
 #    print(e)
 #    idaapi.enable_bpt(bp_addr, False)
