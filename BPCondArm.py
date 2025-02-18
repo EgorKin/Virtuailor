@@ -299,11 +299,12 @@ def get_addrs():
         vfunc_addr = read_func_ptr(vtable_addr+vtable_offset)
         return None, None, vtable_addr, vfunc_addr
 
-object_struct_id = None
 
 def do_logic():
-    global object_struct_id
-    objptr_addr, object_addr, vtable_addr, vfunc_addr = get_addrs()
+    try:
+        objptr_addr, object_addr, vtable_addr, vfunc_addr = get_addrs()
+    except:
+        return
 
     # v_func_addr possibly invalid
     # .text:CAEDF134 LDR.W           R2, [R5,#0x150]
@@ -341,6 +342,7 @@ def do_logic():
                 object_struct_id = None
             else:
                 print("SetLocalType empty failed")
+            return
         # create object type
         object_c_struct = get_c_struct_str(
             object_struct_name, [vtable_struct_name + " *vptr"]
@@ -421,15 +423,9 @@ try:
     # disable after cond executed
     # print("Disabling BP at:", hex(bp_addr + base))
     idaapi.enable_bpt(bp_addr, False)
-except (ReadMemoryError, EmptyVtableError) as e: # comment out this to debug
-    print(e)
-    print("object_struct_id", object_struct_id)
-    if object_struct_id:
-        if idc.SetLocalType(object_struct_id, "", 0):
-            print("SetLocalType empty success")
-        else:
-            print("SetLocalType empty failed")
-    idaapi.enable_bpt(bp_addr, False)
+#except (ReadMemoryError, EmptyVtableError) as e: # comment out this to debug
+#    print(e)
+#    idaapi.enable_bpt(bp_addr, False)
 except Exception as e:
     print(e)
     import traceback
