@@ -246,13 +246,11 @@ def create_and_cast_vtable(object_struct_name, vtable_struct_name, vtable_addr):
     struct_id = create_vtable_struct(
         object_struct_name, vtable_struct_name, vtable_addr
     )
-    t = idc.GetType(vtable_addr)
-    print("before 2: vtable type", t)
-    ret = idc.SetType(vtable_addr, vtable_struct_name) # TODO: fix this by rerun
-    print(ret)
-    if not ret:
-        t = idc.GetType(vtable_addr)
-        raise Exception("create_and_cast_vtable: SetType failed at "+ hex(vtable_addr) +" from "+ str(t) +" to "+vtable_struct_name)
+    # bug: idc.SetType return False but GetType can get
+    idc.SetType(vtable_addr, vtable_struct_name)
+    #if not idc.SetType(vtable_addr, vtable_struct_name):
+    #    t = idc.GetType(vtable_addr)
+    #    raise Exception("create_and_cast_vtable: SetType failed at "+ hex(vtable_addr) +" from "+ str(t) +" to "+vtable_struct_name)
     # annotate vtable
     vtable_name = get_fixed_name(vtable_addr, "vtable_")
     idaapi.set_name(vtable_addr, vtable_name, idaapi.SN_FORCE)
