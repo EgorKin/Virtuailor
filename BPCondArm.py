@@ -299,8 +299,10 @@ def get_addrs():
         vfunc_addr = read_func_ptr(vtable_addr+vtable_offset)
         return None, None, vtable_addr, vfunc_addr
 
+object_struct_id = None
 
 def do_logic():
+    global object_struct_id
     objptr_addr, object_addr, vtable_addr, vfunc_addr = get_addrs()
 
     # v_func_addr possibly invalid
@@ -322,12 +324,9 @@ def do_logic():
         cnt = get_obj_count()
         object_struct_name = "Obj_" + str(cnt)
         dummy_c_struct = get_c_struct_str(object_struct_name, ["void *vptr"])
-        for _ in range(5):
-            obj_struct_id = idc.SetLocalType(-1, dummy_c_struct, 0)
-            if obj_struct_id:
-                break
-            else:
-                print("SetLocalType "+str(dummy_c_struct)+" failed, retry")
+        object_struct_id = idc.SetLocalType(-1, dummy_c_struct, 0)
+        if not object_struct_id:
+            print("SetLocalType "+str(dummy_c_struct)+" failed")
         #obj_struct_id = idc.SetLocalType(-1, dummy_c_struct, 0)
         # cast vtable with `object_struct_name::vtable`
         vtable_struct_name = object_struct_name + "::vtable"
@@ -338,17 +337,11 @@ def do_logic():
         object_c_struct = get_c_struct_str(
             object_struct_name, [vtable_struct_name + " *vptr"]
         )
-        for _ in range(5):
-            ret = idc.SetLocalType(obj_struct_id, None, 0)
-            if ret:
-                break
-            else:
-                print("empty local type "+str(obj_struct_id)+" failed, retry")
-        obj_struct_id = idc.SetLocalType(obj_struct_id, object_c_struct, 0)
-        if obj_struct_id != 0:
-            inc_obj_count()
-        else:
+        if not idc.SetLocalType(object_struct_id, None, 0):
+            raise Exception("SetLocalType empty failed with: " + str(object_struct_id))
+        if not idc.SetLocalType(object_struct_id, object_c_struct, 0) != 0:
             raise Exception("SetLocalType failed with:\n" + object_c_struct)
+        inc_obj_count()
 
     else:  # already typed, use existing object struct & vtable struct
         object_struct_name = extract_object_name(vtable_struct_name)
@@ -422,6 +415,9 @@ try:
     idaapi.enable_bpt(bp_addr, False)
 except (ReadMemoryError, EmptyVtableError) as e: # comment out this to debug
     print(e)
+    if object_struct_id:
+        idc.SetLocalType(object_struct_id, "", 0)
+    idaapi.enable_bpt(bp_addr, False)
 except Exception as e:
     print(e)
     import traceback
