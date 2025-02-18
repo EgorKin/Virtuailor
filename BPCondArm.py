@@ -323,12 +323,13 @@ def do_logic():
         object_struct_name = "Obj_" + str(cnt)
         dummy_c_struct = get_c_struct_str(object_struct_name, ["void *vptr"])
         for _ in range(5):
-            ret = idc.SetLocalType(-1, dummy_c_struct, 0)
-            if ret:
+            obj_struct_id = idc.SetLocalType(-1, dummy_c_struct, 0)
+            if obj_struct_id:
                 break
             else:
                 print("SetLocalType "+str(dummy_c_struct)+" failed")
-        obj_struct_id = idc.SetLocalType(-1, dummy_c_struct, 0)
+        print(obj_struct_id)
+        #obj_struct_id = idc.SetLocalType(-1, dummy_c_struct, 0)
         # cast vtable with `object_struct_name::vtable`
         vtable_struct_name = object_struct_name + "::vtable"
         vtable_struct_id = create_and_cast_vtable(
@@ -338,6 +339,7 @@ def do_logic():
         object_c_struct = get_c_struct_str(
             object_struct_name, [vtable_struct_name + " *vptr"]
         )
+        print(obj_struct_id)
         for _ in range(5):
             ret = idc.SetLocalType(obj_struct_id, "", 0)
             if ret:
