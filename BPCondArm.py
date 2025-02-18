@@ -415,9 +415,9 @@ try:
     idaapi.enable_bpt(bp_addr, False)
 except (ReadMemoryError, EmptyVtableError) as e: # comment out this to debug
     print(e)
+    print("object_struct_id", object_struct_id)
     if object_struct_id:
-        ret = idc.SetLocalType(object_struct_id, "", 0)
-        if ret:
+        if idc.SetLocalType(object_struct_id, "", 0):
             print("SetLocalType empty success")
         else:
             print("SetLocalType empty failed")
