@@ -330,9 +330,17 @@ def do_logic():
         #obj_struct_id = idc.SetLocalType(-1, dummy_c_struct, 0)
         # cast vtable with `object_struct_name::vtable`
         vtable_struct_name = object_struct_name + "::vtable"
-        vtable_struct_id = create_and_cast_vtable(
-            object_struct_name, vtable_struct_name, vtable_addr
-        )
+        try:
+            vtable_struct_id = create_and_cast_vtable(
+                object_struct_name, vtable_struct_name, vtable_addr
+            )
+        except (ReadMemoryError, EmptyVtableError):
+            print("object_struct_id", object_struct_id)
+            if idc.SetLocalType(object_struct_id, "", 0):
+                print("SetLocalType empty success")
+                object_struct_id = None
+            else:
+                print("SetLocalType empty failed")
         # create object type
         object_c_struct = get_c_struct_str(
             object_struct_name, [vtable_struct_name + " *vptr"]
