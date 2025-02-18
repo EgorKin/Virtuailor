@@ -34,6 +34,9 @@ elif mode == "VTABLE":
 class ReadMemoryError(Exception):
     pass
 
+class EmptyVtableError(Exception):
+    pass
+
 def read_dword_checked(ea):
     if ea is None:
         raise ReadMemoryError("read_dword_checked: ea is None")
@@ -41,6 +44,11 @@ def read_dword_checked(ea):
     if val is None:
         raise ReadMemoryError("read_dword_checked: read "+ str(ea) +" failed")
     return val
+
+def read_func_ptr(ea):
+    vfunc_addr_mem = read_dword_checked(ea)
+    vfunc_addr = sub_one_if_thumb(vfunc_addr_mem)
+    return vfunc_addr
 
 def append_cmt(ea, cmt, repeatable=0, func=False, allow_duplicate=False):
     if func:
@@ -197,7 +205,7 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr):
             break
 
     while True:
-        vfunc_addr = sub_one_if_thumb(read_dword_checked(vtable_addr + vfunc_offset))
+        vfunc_addr = read_func_ptr(vtable_addr + vfunc_offset)
         if not is_func(vfunc_addr): # other global data can be among vtables 
             break
         vfunc_name = get_fixed_name(vfunc_addr, prefix)
@@ -233,7 +241,9 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr):
         vfunc_offset += 4  # Use 4 bytes for 32-bit
 
     # create c struct declaration with fp_decls
-    # empty struct, will cause SetType Error, first vfunc validity checked
+    # empty struct will cause SetType Error
+    if len(fp_decls) == 0:
+        raise EmptyVtableError("Empty vtable at " + hex(vtable_addr))
     vtable_c_struct = get_c_struct_str(vtable_struct_name, fp_decls)
     struct_id = idc.SetLocalType(-1, vtable_c_struct, 0)
     if struct_id == 0:
@@ -273,25 +283,20 @@ def inc_obj_count():
 
 
 def get_addrs():
-    def get_vfunc_addr(vtable_addr, vtable_offset):
-        vfunc_addr_mem = read_dword_checked(vtable_addr + vtable_offset)
-        vfunc_addr = sub_one_if_thumb(vfunc_addr_mem)
-        return vfunc_addr
-    
     if mode == "OBJPTR":
         objptr_addr = idc.GetRegValue(objptr_register) + (idc.GetRegValue(objptr_offset) if is_register(objptr_offset) else int(objptr_offset, 16))
         object_addr = read_dword_checked(objptr_addr) + vptr_offset
         vtable_addr = read_dword_checked(object_addr)
-        vfunc_addr = get_vfunc_addr(vtable_addr, vtable_offset)
+        vfunc_addr = read_func_ptr(vtable_addr+vtable_offset)
         return objptr_addr, object_addr, vtable_addr, vfunc_addr
     elif mode == "VPTR":
         object_addr = idc.GetRegValue(vptr_register) + vptr_offset
         vtable_addr = read_dword_checked(object_addr)
-        vfunc_addr = get_vfunc_addr(vtable_addr, vtable_offset)
+        vfunc_addr = read_func_ptr(vtable_addr+vtable_offset)
         return None, object_addr, vtable_addr, vfunc_addr
     else: # "VTABLE"
         vtable_addr = idc.GetRegValue(vtable_register)
-        vfunc_addr = get_vfunc_addr(vtable_addr, vtable_offset)
+        vfunc_addr = read_func_ptr(vtable_addr+vtable_offset)
         return None, None, vtable_addr, vfunc_addr
 
 
@@ -311,7 +316,6 @@ def do_logic():
 
     # check whether vtable has been typed
     vtable_struct_name = idc.GetType(vtable_addr)
-    print("before: vtable type", vtable_struct_name)
     if not vtable_struct_name:  # create vtable struct & object struct
         # create object name first
         # TODO: optimize object count read write
@@ -405,7 +409,7 @@ try:
     # disable after cond executed
     # print("Disabling BP at:", hex(bp_addr + base))
     idaapi.enable_bpt(bp_addr, False)
-except ReadMemoryError: # comment out this to debug
+except (ReadMemoryError, EmptyVtableError): # comment out this to debug
     pass
 except Exception as e:
     print(e)
