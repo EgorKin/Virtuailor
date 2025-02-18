@@ -197,11 +197,9 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr):
             break
 
     while True:
-        vfunc_addr = read_dword_checked(vtable_addr + vfunc_offset)
+        vfunc_addr = sub_one_if_thumb(read_dword_checked(vtable_addr + vfunc_offset))
         if not is_func(vfunc_addr): # other global data can be among vtables 
             break
-
-        vfunc_addr = sub_one_if_thumb(vfunc_addr)
         vfunc_name = get_fixed_name(vfunc_addr, prefix)
         vfunc_type = idc.get_type(vfunc_addr)
         if vfunc_type:
@@ -235,6 +233,7 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr):
         vfunc_offset += 4  # Use 4 bytes for 32-bit
 
     # create c struct declaration with fp_decls
+    # empty struct, will cause SetType Error, first vfunc validity checked
     vtable_c_struct = get_c_struct_str(vtable_struct_name, fp_decls)
     struct_id = idc.SetLocalType(-1, vtable_c_struct, 0)
     if struct_id == 0:
@@ -246,11 +245,10 @@ def create_and_cast_vtable(object_struct_name, vtable_struct_name, vtable_addr):
     struct_id = create_vtable_struct(
         object_struct_name, vtable_struct_name, vtable_addr
     )
-    # bug: idc.SetType return False but GetType can get
-    idc.SetType(vtable_addr, vtable_struct_name)
-    #if not idc.SetType(vtable_addr, vtable_struct_name):
-    #    t = idc.GetType(vtable_addr)
-    #    raise Exception("create_and_cast_vtable: SetType failed at "+ hex(vtable_addr) +" from "+ str(t) +" to "+vtable_struct_name)
+    # bug: idc.SetType return False but GetType can get (when empty struct)
+    if not idc.SetType(vtable_addr, vtable_struct_name):
+        t = idc.GetType(vtable_addr)
+        raise Exception("create_and_cast_vtable: SetType failed at "+ hex(vtable_addr) +" from "+ str(t) +" to "+vtable_struct_name)
     # annotate vtable
     vtable_name = get_fixed_name(vtable_addr, "vtable_")
     idaapi.set_name(vtable_addr, vtable_name, idaapi.SN_FORCE)
