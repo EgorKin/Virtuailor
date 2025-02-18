@@ -84,3 +84,5 @@ if __name__ == "__main__":
             int(gui.start_line.text(), 16), int(gui.stop_line.text(), 16)
         )
         vtableAddress.print_counter()
+    with open("obj_count.txt", "w") as f:
+        f.write("0")

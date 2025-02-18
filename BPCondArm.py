@@ -2,6 +2,13 @@ mode = "<<<mode>>>"
 call_addr, ref_objptr_addr, ref_vptr_addr, ref_vtable_addr = <<<call_addr>>>, <<<ref_objptr_addr>>>, <<<ref_vptr_addr>>>, <<<ref_vtable_addr>>>
 objptr_register, vptr_register, vtable_register = "<<<objptr_register>>>", "<<<vptr_register>>>", "<<<vtable_register>>>"
 objptr_offset, vptr_offset, vtable_offset = "<<<objptr_offset>>>", <<<vptr_offset>>>, <<<vtable_offset>>>
+vtable_addr_ranges = <<<vtable_addr_ranges>>>
+
+def is_vtable_addr(ea):
+    for r in vtable_addr_ranges:
+        if ea >= r[0] and ea < r[1]:
+            return True
+    return False
 
 import idc
 import idaapi
@@ -9,6 +16,7 @@ import idautils
 
 base = idaapi.get_imagebase()
 call_addr += base
+vtable_addr_ranges = [(st+base,ed+base) for st, ed in vtable_addr_ranges]
 
 if mode == "OBJPTR":
     ref_objptr_addr += base
@@ -78,11 +86,11 @@ def fix_arm_vtable(vfunc_addr):
             print("Failed to create function, at".hex(vfunc_addr))
 
 
-def get_name(address):
+def get_name(address, demangle=False):
     name = idc.GetFunctionName(address)
     if name == "":
         name = idc.Name(address)
-        if name.startswith("_Z"):
+        if demangle and name.startswith("_Z"):
             name = idc.Demangle(name, 0)[: name.find("(")]  # strip off the arguments
     return name
 
@@ -180,49 +188,45 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr):
     # method (i.e., classes that are abstract).
 
     while True:
+        # TODO: check whether really used
         vfunc_addr = read_dword_checked(vtable_addr + vfunc_offset)
         if vfunc_addr == 0:
+            print("vtable with starting 0")
             vfunc_offset += 4
         else:
             break
 
     while True:
         vfunc_addr = read_dword_checked(vtable_addr + vfunc_offset)
-        if vfunc_addr == 0 or vfunc_addr >> 24 == 0xFF:
-            # TODO: use Offset to Top component (negative offset) to find the end of the vtable
+        if not is_func(vfunc_addr): # other global data can be among vtables 
             break
 
         vfunc_addr = sub_one_if_thumb(vfunc_addr)
         vfunc_name = get_fixed_name(vfunc_addr, prefix)
-        if is_func(vfunc_addr):
-            vfunc_type = idc.get_type(vfunc_addr)
-            if vfunc_type:
-                # assume already renamed
-                existing_obj_type = extract_object_name(vfunc_name)
-                if existing_obj_type and object_struct_name != existing_obj_type:
-                    append_cmt(vfunc_addr, object_struct_name, repeatable=0, func=True)
-            else:
-                # assume also haven't renamed
-                rename_function(vfunc_addr, get_fixed_name(vfunc_addr, prefix))
-                # currently use xref and method name link is enough
-                # idc.set_func_cmt(vfunc_addr, vfunc_name+" @ "+ vtable_name, 1)
-                # cast vfunc
-                vfunc_type = get_decompiled_func_type(vfunc_addr)
-                arg_start_idx = vfunc_type.find("(") + 1
-                args = vfunc_type[arg_start_idx : vfunc_type.find(")")].split(",")
-                if len(args) > 0:
-                    args[0] = object_struct_name + " *this"
-                    vfunc_type = vfunc_type[:arg_start_idx] + ",".join(args) + ")"
-                    vfunc_decl = (
-                        vfunc_type[: arg_start_idx - 1] + " f(" + ",".join(args) + ")"
-                    )
-                    #print(vfunc_decl)
-                    func_type_tuple = idc.parse_decl(vfunc_decl, idc.PT_SILENT)
-                    idc.apply_type(vfunc_addr, func_type_tuple)
+        vfunc_type = idc.get_type(vfunc_addr)
+        if vfunc_type:
+            # assume already renamed
+            existing_obj_type = extract_object_name(vfunc_name)
+            if existing_obj_type and object_struct_name != existing_obj_type:
+                append_cmt(vfunc_addr, object_struct_name, repeatable=0, func=True)
         else:
-            vfunc_type = "void ()"
-            print("Filling vtable function with "+ vfunc_type +" at " + hex(vfunc_addr))
-        # TODO: check if vfunc_name already in the list, use one more layer of ::
+            # assume also haven't renamed
+            rename_function(vfunc_addr, get_fixed_name(vfunc_addr, prefix))
+            # currently use xref and method name link is enough
+            # idc.set_func_cmt(vfunc_addr, vfunc_name+" @ "+ vtable_name, 1)
+            # cast vfunc
+            vfunc_type = get_decompiled_func_type(vfunc_addr)
+            arg_start_idx = vfunc_type.find("(") + 1
+            args = vfunc_type[arg_start_idx : vfunc_type.find(")")].split(",")
+            if len(args) > 0:
+                args[0] = object_struct_name + " *this"
+                vfunc_type = vfunc_type[:arg_start_idx] + ",".join(args) + ")"
+                vfunc_decl = (
+                    vfunc_type[: arg_start_idx - 1] + " f(" + ",".join(args) + ")"
+                )
+                #print(vfunc_decl)
+                func_type_tuple = idc.parse_decl(vfunc_decl, idc.PT_SILENT)
+                idc.apply_type(vfunc_addr, func_type_tuple)
         if vfunc_name in decl_names:
             vfunc_name = get_repetition_name(vfunc_name, decl_names)
         decl_names.append(vfunc_name)
@@ -242,8 +246,9 @@ def create_and_cast_vtable(object_struct_name, vtable_struct_name, vtable_addr):
     struct_id = create_vtable_struct(
         object_struct_name, vtable_struct_name, vtable_addr
     )
-    if not idc.SetType(vtable_addr, vtable_struct_name):
-        raise Exception("create_and_cast_vtable: SetType failed")
+    if not idc.SetType(vtable_addr, vtable_struct_name): # TODO: fix this by rerun
+        t = idc.GetType(vtable_addr)
+        raise Exception("create_and_cast_vtable: SetType failed at "+ hex(vtable_addr) +" from "+ str(t) +" to "+vtable_struct_name)
     # annotate vtable
     vtable_name = get_fixed_name(vtable_addr, "vtable_")
     idaapi.set_name(vtable_addr, vtable_name, idaapi.SN_FORCE)
@@ -299,7 +304,11 @@ def do_logic():
     # .text:CAEDF13A LDR.W           R0, [R5,#0x154]
     # .text:CAEDF13E MOV             R1, R4
     # .text:CAEDF140 BLX             R2
-    if not is_func(vfunc_addr):
+    
+    #if not is_func(vfunc_addr):
+    #    return
+    if not is_vtable_addr(vtable_addr) or get_name(vfunc_addr, False).startswith("_Z"):
+        # TODO: still do some annotation
         return
 
     # check whether vtable has been typed
