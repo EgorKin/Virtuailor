@@ -327,8 +327,7 @@ def do_logic():
             if obj_struct_id:
                 break
             else:
-                print("SetLocalType "+str(dummy_c_struct)+" failed")
-        print(obj_struct_id)
+                print("SetLocalType "+str(dummy_c_struct)+" failed, retry")
         #obj_struct_id = idc.SetLocalType(-1, dummy_c_struct, 0)
         # cast vtable with `object_struct_name::vtable`
         vtable_struct_name = object_struct_name + "::vtable"
@@ -339,13 +338,12 @@ def do_logic():
         object_c_struct = get_c_struct_str(
             object_struct_name, [vtable_struct_name + " *vptr"]
         )
-        print(obj_struct_id)
         for _ in range(5):
             ret = idc.SetLocalType(obj_struct_id, "", 0)
             if ret:
                 break
             else:
-                print("empty local type "+str(obj_struct_id)+" failed")
+                print("empty local type "+str(obj_struct_id)+" failed, retry")
         obj_struct_id = idc.SetLocalType(obj_struct_id, object_c_struct, 0)
         if obj_struct_id != 0:
             inc_obj_count()
