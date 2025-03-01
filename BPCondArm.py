@@ -55,16 +55,19 @@ def append_cmt(ea, cmt, repeatable=0, func=False, allow_duplicate=False):
         cur_cmt = idc.get_func_cmt(ea, repeatable)
     else:
         cur_cmt = idc.get_cmt(ea, repeatable)
+
+    # process comment
     if not allow_duplicate and (cur_cmt and cmt in cur_cmt):
         return
     if cur_cmt:
         new_cmt = cur_cmt + "\n" + cmt
     else:
         new_cmt = cmt
+
     if func:
-        idc.set_cmt(ea, new_cmt, repeatable)
-    else:
         idc.set_func_cmt(ea, new_cmt, repeatable)
+    else:
+        idc.set_cmt(ea, new_cmt, repeatable)
 
 
 def is_code(ea):
