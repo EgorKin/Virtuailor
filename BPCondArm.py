@@ -4,11 +4,13 @@ objptr_register, vptr_register, vtable_register = "<<<objptr_register>>>", "<<<v
 objptr_offset, vptr_offset, vtable_offset = "<<<objptr_offset>>>", <<<vptr_offset>>>, <<<vtable_offset>>>
 relro_addr_ranges = <<<vtable_addr_ranges>>>
 
+
 def is_relro_addr(ea):
     for r in relro_addr_ranges:
         if ea >= r[0] and ea < r[1]:
             return True
     return False
+
 
 import idc
 import idaapi
@@ -16,7 +18,7 @@ import idautils
 
 base = idaapi.get_imagebase()
 call_addr += base
-relro_addr_ranges = [(st+base,ed+base) for st, ed in relro_addr_ranges]
+relro_addr_ranges = [(st + base, ed + base) for st, ed in relro_addr_ranges]
 
 if mode == "OBJPTR":
     ref_objptr_addr += base
@@ -31,24 +33,29 @@ elif mode == "VTABLE":
     ref_vtable_addr += base
     bp_addr = ref_vtable_addr
 
+
 class ReadMemoryError(Exception):
     pass
 
+
 class EmptyVtableError(Exception):
     pass
+
 
 def read_dword_checked(ea):
     if ea is None:
         raise ReadMemoryError("read_dword_checked: ea is None")
     val = idc.read_dbg_dword(ea)
     if val is None:
-        raise ReadMemoryError("read_dword_checked: read "+ str(ea) +" failed")
+        raise ReadMemoryError("read_dword_checked: read " + str(ea) + " failed")
     return val
+
 
 def read_func_ptr(ea):
     vfunc_addr_mem = read_dword_checked(ea)
     vfunc_addr = sub_one_if_thumb(vfunc_addr_mem)
     return vfunc_addr
+
 
 def append_cmt(ea, cmt, repeatable=0, func=False, allow_duplicate=False):
     if func:
@@ -73,14 +80,17 @@ def append_cmt(ea, cmt, repeatable=0, func=False, allow_duplicate=False):
 def is_code(ea):
     return idc.is_code(idaapi.get_flags(ea))
 
+
 def is_func(ea):
     f = idaapi.get_func(ea)
     if f is not None:
         return ea == f.start_ea
     return False
 
+
 def is_register(offset):
     return offset[0] == "R"
+
 
 def make_func(ea):
     code_err = idc.MakeCode(ea)
@@ -173,6 +183,7 @@ def rename_function(func_addr, func_name):
             "rename_function to `" + func_name + "` failed with " + hex(func_addr)
         )
 
+
 def get_repetition_name(func_name, exist_names):
     parts = func_name.split("::")
     for i in range(1, 50):
@@ -183,7 +194,6 @@ def get_repetition_name(func_name, exist_names):
             return new_name
         parts.pop(-2)
     raise Exception("get_repetition_name: 50 repeated function name reached")
-        
 
 
 def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr):
@@ -209,7 +219,7 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr):
 
     while True:
         vfunc_addr = read_func_ptr(vtable_addr + vfunc_offset)
-        if not is_func(vfunc_addr): # other global data can be among vtables 
+        if not is_func(vfunc_addr):  # other global data can be among vtables
             break
         vfunc_name = get_fixed_name(vfunc_addr, prefix)
         vfunc_type = idc.get_type(vfunc_addr)
@@ -233,7 +243,7 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr):
                 vfunc_decl = (
                     vfunc_type[: arg_start_idx - 1] + " f(" + ",".join(args) + ")"
                 )
-                #print(vfunc_decl)
+                # print(vfunc_decl)
                 func_type_tuple = idc.parse_decl(vfunc_decl, idc.PT_SILENT)
                 idc.apply_type(vfunc_addr, func_type_tuple)
         if vfunc_name in decl_names:
@@ -261,7 +271,14 @@ def create_and_cast_vtable(object_struct_name, vtable_struct_name, vtable_addr):
     # bug: idc.SetType return False but GetType can get (when empty struct)
     if not idc.SetType(vtable_addr, vtable_struct_name):
         t = idc.GetType(vtable_addr)
-        raise Exception("create_and_cast_vtable: SetType failed at "+ hex(vtable_addr) +" from "+ str(t) +" to "+vtable_struct_name)
+        raise Exception(
+            "create_and_cast_vtable: SetType failed at "
+            + hex(vtable_addr)
+            + " from "
+            + str(t)
+            + " to "
+            + vtable_struct_name
+        )
     # annotate vtable
     vtable_name = get_fixed_name(vtable_addr, "vtable_")
     idaapi.set_name(vtable_addr, vtable_name, idaapi.SN_FORCE)
@@ -287,19 +304,23 @@ def inc_obj_count():
 
 def get_addrs():
     if mode == "OBJPTR":
-        objptr_addr = idc.GetRegValue(objptr_register) + (idc.GetRegValue(objptr_offset) if is_register(objptr_offset) else int(objptr_offset, 16))
+        objptr_addr = idc.GetRegValue(objptr_register) + (
+            idc.GetRegValue(objptr_offset)
+            if is_register(objptr_offset)
+            else int(objptr_offset, 16)
+        )
         object_addr = read_dword_checked(objptr_addr) + vptr_offset
         vtable_addr = read_dword_checked(object_addr)
-        vfunc_addr = read_func_ptr(vtable_addr+vtable_offset)
+        vfunc_addr = read_func_ptr(vtable_addr + vtable_offset)
         return objptr_addr, object_addr, vtable_addr, vfunc_addr
     elif mode == "VPTR":
         object_addr = idc.GetRegValue(vptr_register) + vptr_offset
         vtable_addr = read_dword_checked(object_addr)
-        vfunc_addr = read_func_ptr(vtable_addr+vtable_offset)
+        vfunc_addr = read_func_ptr(vtable_addr + vtable_offset)
         return None, object_addr, vtable_addr, vfunc_addr
-    else: # "VTABLE"
+    else:  # "VTABLE"
         vtable_addr = idc.GetRegValue(vtable_register)
-        vfunc_addr = read_func_ptr(vtable_addr+vtable_offset)
+        vfunc_addr = read_func_ptr(vtable_addr + vtable_offset)
         return None, None, vtable_addr, vfunc_addr
 
 
@@ -315,8 +336,12 @@ def do_logic():
     # .text:CAEDF13A LDR.W           R0, [R5,#0x154]
     # .text:CAEDF13E MOV             R1, R4
     # .text:CAEDF140 BLX             R2
-    
-    if not is_relro_addr(vtable_addr) or not is_func(vfunc_addr) or get_name(vfunc_addr, False).startswith("_Z"):
+
+    if (
+        not is_relro_addr(vtable_addr)
+        or not is_func(vfunc_addr)
+        or get_name(vfunc_addr, False).startswith("_Z")
+    ):
         # TODO: still do some annotation
         return
 
@@ -330,8 +355,8 @@ def do_logic():
         dummy_c_struct = get_c_struct_str(object_struct_name, ["void *vptr"])
         object_struct_id = idc.SetLocalType(-1, dummy_c_struct, 0)
         if not object_struct_id:
-            print("SetLocalType "+str(dummy_c_struct)+" failed")
-        #obj_struct_id = idc.SetLocalType(-1, dummy_c_struct, 0)
+            print("SetLocalType " + str(dummy_c_struct) + " failed")
+        # obj_struct_id = idc.SetLocalType(-1, dummy_c_struct, 0)
         # cast vtable with `object_struct_name::vtable`
         vtable_struct_name = object_struct_name + "::vtable"
         try:
@@ -372,7 +397,9 @@ def do_logic():
                 # print(hex(objptr_addr))
                 raise Exception("SetType to objptr failed")
 
-            pobj_name = get_fixed_name(objptr_addr, "p_" + object_struct_name.lower() + "_")
+            pobj_name = get_fixed_name(
+                objptr_addr, "p_" + object_struct_name.lower() + "_"
+            )
             if not idaapi.set_name(objptr_addr, pobj_name, idaapi.SN_FORCE):
                 raise Exception(
                     "set_name pobj " + pobj_name + "to" + hex(objptr_addr) + " failed"
@@ -396,7 +423,9 @@ def do_logic():
     idc.OpStroff(idautils.DecodeInstruction(ref_vtable_addr), 1, vtable_struct_id)
 
     # add xref to obj & vtable (ida ignores duplicate xref and returns True)
-    if object_addr and not idc.add_dref(ref_vptr_addr, object_addr, idc.XREF_USER | idc.dr_R):
+    if object_addr and not idc.add_dref(
+        ref_vptr_addr, object_addr, idc.XREF_USER | idc.dr_R
+    ):
         raise Exception(
             "xref failed to object at address:"
             + hex(ref_vptr_addr)
@@ -425,7 +454,7 @@ try:
     # print("Disabling BP at:", hex(bp_addr + base))
     idaapi.enable_bpt(bp_addr, False)
 # bug: global not working here
-#except (ReadMemoryError, EmptyVtableError) as e: # comment out this to debug
+# except (ReadMemoryError, EmptyVtableError) as e: # comment out this to debug
 #    print(e)
 #    idaapi.enable_bpt(bp_addr, False)
 except Exception as e:
