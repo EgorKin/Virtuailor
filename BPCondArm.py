@@ -209,7 +209,7 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr):
     # method (i.e., classes that are abstract).
 
     while True:
-        # TODO: check whether really used
+        # TODO: check whether really used: reached on early creation
         vfunc_addr = read_dword_checked(vtable_addr + vfunc_offset)
         if vfunc_addr == 0:
             print("vtable with starting 0")
@@ -411,14 +411,14 @@ def do_logic():
     if object_addr:
         if not idc.GetType(object_addr):  # objects only have one fixed type
             if not idc.SetType(object_addr, object_struct_name):
-                # print(hex(object_addr))
+                print(hex(object_addr))
                 raise Exception("SetType to obj failed")
-
-            obj_name = get_fixed_name(object_addr, object_struct_name.lower() + "_")
-            if not idaapi.set_name(object_addr, obj_name, idaapi.SN_FORCE):
-                raise Exception(
-                    "set_name obj " + obj_name + "to " + hex(object_addr) + " failed"
-                )
+            else:
+                obj_name = get_fixed_name(object_addr, object_struct_name.lower() + "_")
+                if not idaapi.set_name(object_addr, obj_name, idaapi.SN_FORCE):
+                    raise Exception(
+                        "set_name obj " + obj_name + "to " + hex(object_addr) + " failed"
+                    )
 
     idc.OpStroff(idautils.DecodeInstruction(ref_vtable_addr), 1, vtable_struct_id)
 
