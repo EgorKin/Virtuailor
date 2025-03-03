@@ -17,8 +17,8 @@ def reset_local_type(id, decl):
 
 def rename_local_type(id, new_name):
     decl = idc.print_decls(str(id), 0)
-    if not decl.startswith("struct"):
-        raise Exception("rename_local_type: not a struct, got `" + decl + "`")
+    if "struct" not in decl:
+        raise Exception("rename_local_type: print_decls failed, got `" + decl + "`")
     decl = "struct " + new_name + decl[decl.find("{") :]
     reset_local_type(id, decl)
 
