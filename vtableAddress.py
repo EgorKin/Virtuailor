@@ -5,7 +5,11 @@ import ida_struct
 import idaapi
 import sys, os
 
+# LSP
+from utils import get_segment_ranges
+
 idaapi.require("AddBP")
+idaapi.require("utils")
 
 # fmt: off
 REGISTERS = {
@@ -97,16 +101,8 @@ def read_bp_cond_text():
 VTABLE_SEGMENT_NAMES = [".data.rel.ro.local", ".data.rel.ro"]
 
 
-def get_vtable_addr_ranges_str():
-    vtable_addr_ranges = []
-    for s in idautils.Segments():
-        if idc.SegName(s) in VTABLE_SEGMENT_NAMES:
-            vtable_addr_ranges.append((idc.SegStart(s), idc.SegEnd(s)))
-    return str(vtable_addr_ranges)
-
-
 BP_COND_TEXT = read_bp_cond_text().replace(
-    "<<<vtable_addr_ranges>>>", get_vtable_addr_ranges_str()
+    "<<<vtable_addr_ranges>>>", str(get_segment_ranges(VTABLE_SEGMENT_NAMES))
 )
 
 

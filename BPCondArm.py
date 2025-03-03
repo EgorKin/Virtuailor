@@ -412,7 +412,8 @@ def do_logic():
         if not idc.GetType(object_addr):  # objects only have one fixed type
             if not idc.SetType(object_addr, object_struct_name):
                 print(hex(object_addr))
-                raise Exception("SetType to obj failed")
+                inc_obj_count() # prevent future conflict
+                #raise Exception("SetType to obj failed")
             else:
                 obj_name = get_fixed_name(object_addr, object_struct_name.lower() + "_")
                 if not idaapi.set_name(object_addr, obj_name, idaapi.SN_FORCE):
