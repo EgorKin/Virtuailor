@@ -1,4 +1,3 @@
-from operator import call
 import idc
 import idautils
 import idaapi
