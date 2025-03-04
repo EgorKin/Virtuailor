@@ -44,10 +44,10 @@ class UI_Hook(idaapi.UI_Hooks):
         form_type = idaapi.get_widget_type(form)
         for item in self.items:
             if form_type in item["views"]:
-                idaapi.attach_action_to_popup(form, popup, item["action"], item["name"])
+                idaapi.attach_action_to_popup(form, popup, item["name"], None)
 
-    def add_popup_item(self, name, views, action):
-        self.items.append({"name": name, "views": views, "action": action})
+    def add_popup_item(self, name, views):
+        self.items.append({"name": name, "views": views})
 
 
 UIHOOK = UI_Hook()
@@ -65,4 +65,4 @@ def register_action(name, description, callback, shortcut=None, views=[], popup=
         )
     )
     if popup:
-        UIHOOK.add_popup_item(name, views, handler)
+        UIHOOK.add_popup_item(name, views)
