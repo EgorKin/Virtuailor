@@ -36,16 +36,22 @@ class action_handler_t(idaapi.action_handler_t):
 
 
 class UI_Hook(idaapi.UI_Hooks):
-    def __init__(self, entry_name, views, action):
+    def __init__(self):
         idaapi.UI_Hooks.__init__(self)
-        self.views = views
-        self.entry_name = entry_name
-        self.action = action
+        self.items = []
 
     def finish_populating_widget_popup(self, form, popup):
         form_type = idaapi.get_widget_type(form)
-        if form_type in self.views:
-            idaapi.attach_action_to_popup(form, popup, self.action, self.entry_name)
+        for item in self.items:
+            if form_type in item["views"]:
+                idaapi.attach_action_to_popup(form, popup, item["action"], item["name"])
+
+    def add_popup_item(self, name, views, action):
+        self.items.append({"name": name, "views": views, "action": action})
+
+
+UIHOOK = UI_Hook()
+UIHOOK.hook()
 
 
 def register_action(name, description, callback, shortcut=None, views=[], popup=False):
@@ -59,4 +65,4 @@ def register_action(name, description, callback, shortcut=None, views=[], popup=
         )
     )
     if popup:
-        UI_Hook(name, views, handler).hook()
+        UIHOOK.add_popup_item(name, views, handler)
