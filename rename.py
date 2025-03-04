@@ -39,6 +39,7 @@ def rename_object(obj_name, new_obj_name):
     vtable_decl = idc.print_decls(str(vtable_id), 0)
     vtable_decl = vtable_decl.replace(obj_name + "::", new_obj_name + "::")
     reset_local_type(vtable_id, vtable_decl)
+    # other vtables might also have func ptr of obj_name
     for id in range(idc.get_ordinal_qty()):
         decl = idc.print_decls(str(id), 0)
         if obj_name + "::" in decl:
@@ -51,6 +52,11 @@ def rename_object(obj_name, new_obj_name):
         func_name = idc.get_func_name(cur)
         if func_name.startswith(obj_name + "::"):
             idc.set_name(cur, new_obj_name + "::" + func_name[len(obj_name) + 2 :])
+        func_cmt = idc.get_func_cmt(cur, 1)
+        if obj_name + "::" in func_cmt:
+            idc.set_func_cmt(
+                cur, func_cmt.replace(obj_name + "::", new_obj_name + "::"), 1
+            )
         cur = idc.get_next_func(cur)
 
 
