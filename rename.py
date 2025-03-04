@@ -93,6 +93,9 @@ class RenameFunctionGUI(QtWidgets.QDialog):
     def on_cancel_clicked(self):
         self.close()
 
+    def closeEvent(self, event):
+        self.close()
+
 
 def rename_function(ctx):
     gui = RenameFunctionGUI()
