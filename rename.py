@@ -39,6 +39,11 @@ def rename_object(obj_name, new_obj_name):
     vtable_decl = idc.print_decls(str(vtable_id), 0)
     vtable_decl = vtable_decl.replace(obj_name + "::", new_obj_name + "::")
     reset_local_type(vtable_id, vtable_decl)
+    for id in range(idc.get_ordinal_qty()):
+        decl = idc.print_decls(str(id), 0)
+        if obj_name + "::" in decl:
+            decl = decl.replace(obj_name + "::", new_obj_name + "::")
+            reset_local_type(id, decl)
 
     text_seg_st, text_seg_ed = get_segment_ranges([".text"])[0]
     cur = idc.get_next_func(text_seg_st)
@@ -47,3 +52,7 @@ def rename_object(obj_name, new_obj_name):
         if func_name.startswith(obj_name + "::"):
             idc.set_name(cur, new_obj_name + "::" + func_name[len(obj_name) + 2 :])
         cur = idc.get_next_func(cur)
+
+
+def rename_function(func_name, new_func_name):
+    pass
