@@ -44,5 +44,13 @@ class action_handler_t(idaapi.action_handler_t):
 
 def register_action(name, description, callback, shortcut=None):
     idaapi.register_action(
-        idaapi.action_desc_t(name, description, action_handler_t(callback), shortcut)
+        idaapi.action_desc_t(
+            name,
+            description,
+            action_handler_t(callback),
+            shortcut,
+            None,
+            -1,
+            idaapi.AST_ENABLE_ALWAYS,
+        )
     )

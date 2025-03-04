@@ -69,6 +69,7 @@ class RenameFunctionGUI(QtWidgets.QDialog):
             | QtCore.Qt.WindowTitleHint
             | QtCore.Qt.WindowCloseButtonHint,
         )
+        self.setWindowTitle("Rename Function")
         layout = QtWidgets.QVBoxLayout()
         stop_label = QtWidgets.QLabel()
         stop_label.setText("End Address:")
@@ -84,17 +85,10 @@ class RenameFunctionGUI(QtWidgets.QDialog):
         button_ok.clicked.connect(self.on_ok_clicked)
         layout.addWidget(button_ok)
 
-        button_cancel = QtWidgets.QPushButton("&Cancel")
-        button_cancel.setDefault(True)
-        button_cancel.clicked.connect(self.on_cancel_clicked)
-        layout.addWidget(button_cancel)
-
         self.setLayout(layout)
 
     def on_ok_clicked(self):
-        self.close()
-
-    def on_cancel_clicked(self):
+        # TODO
         self.close()
 
     def closeEvent(self, event):
