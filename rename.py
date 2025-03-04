@@ -1,8 +1,10 @@
+from os import rename
 import idc
 import idaapi
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 # LSP
-from utils import get_segment_ranges
+from utils import get_segment_ranges, register_action
 
 # from utils import get_segment_ranges
 idaapi.require("utils")
@@ -58,5 +60,43 @@ def rename_object(obj_name, new_obj_name):
         cur = idc.get_next_func(cur)
 
 
-def rename_function(func_name, new_func_name):
-    pass
+class RenameFunctionGUI(QtWidgets.QDialog):
+    def __init__(self):
+        QtWidgets.QDialog.__init__(
+            self, None, QtCore.Qt.WindowSystemMenuHint | QtCore.Qt.WindowTitleHint
+        )
+        layout = QtWidgets.QVBoxLayout()
+        stop_label = QtWidgets.QLabel()
+        stop_label.setText("End Address:")
+        layout.addWidget(stop_label)
+
+        self.stop_line = QtWidgets.QLineEdit()
+        self.stop_line.setObjectName("stop_line")
+        self.stop_line.setText("dummy text")
+        layout.addWidget(self.stop_line)
+
+        button_ok = QtWidgets.QPushButton("&OK")
+        button_ok.setDefault(True)
+        button_ok.clicked.connect(self.on_ok_clicked)
+        layout.addWidget(button_ok)
+
+        button_cancel = QtWidgets.QPushButton("&Cancel")
+        button_cancel.setDefault(True)
+        button_cancel.clicked.connect(self.on_cancel_clicked)
+        layout.addWidget(button_cancel)
+
+        self.setLayout(layout)
+
+    def on_ok_clicked(self):
+        self.close()
+
+    def on_cancel_clicked(self):
+        self.close()
+
+
+def rename_function(ctx):
+    gui = RenameFunctionGUI()
+    gui.exec_()
+
+
+register_action("renamefunction", "Rename function", rename_function, "Ctrl-R")
