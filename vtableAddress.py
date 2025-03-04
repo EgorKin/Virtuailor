@@ -6,7 +6,7 @@ import idaapi
 import sys, os
 
 # LSP
-from utils import get_segment_ranges
+import utils
 
 idaapi.require("AddBP")
 idaapi.require("utils")
@@ -102,7 +102,7 @@ VTABLE_SEGMENT_NAMES = [".data.rel.ro.local", ".data.rel.ro"]
 
 
 BP_COND_TEXT = read_bp_cond_text().replace(
-    "<<<vtable_addr_ranges>>>", str(get_segment_ranges(VTABLE_SEGMENT_NAMES))
+    "<<<vtable_addr_ranges>>>", str(utils.get_segment_ranges(VTABLE_SEGMENT_NAMES))
 )
 
 

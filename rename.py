@@ -4,7 +4,7 @@ import idaapi
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 # LSP
-from utils import get_segment_ranges, register_action
+import utils
 
 # from utils import get_segment_ranges
 idaapi.require("utils")
@@ -48,7 +48,7 @@ def rename_object(obj_name, new_obj_name):
             decl = decl.replace(obj_name + "::", new_obj_name + "::")
             reset_local_type(id, decl)
 
-    text_seg_st, text_seg_ed = get_segment_ranges([".text"])[0]
+    text_seg_st, text_seg_ed = utils.get_segment_ranges([".text"])[0]
     cur = idc.get_next_func(text_seg_st)
     while cur < text_seg_ed:
         func_name = idc.get_func_name(cur)
@@ -99,4 +99,4 @@ def rename_function(ctx):
     gui.exec_()
 
 
-register_action("renamefunction", "Rename function", rename_function, "Ctrl-R")
+utils.register_action("renamefunction", "Rename function", rename_function, "Ctrl-R")
