@@ -53,7 +53,7 @@ def rename_object(obj_name, new_obj_name):
         if func_name.startswith(obj_name + "::"):
             idc.set_name(cur, new_obj_name + "::" + func_name[len(obj_name) + 2 :])
         func_cmt = idc.get_func_cmt(cur, 0)
-        if obj_name + "::" in func_cmt:
+        if obj_name in func_cmt:
             idc.set_func_cmt(cur, func_cmt.replace(obj_name, new_obj_name), 0)
         cur = idc.get_next_func(cur)
 
