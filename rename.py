@@ -1,6 +1,7 @@
 from os import rename
 import idc
 import idaapi
+import ida_kernwin
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 # LSP
@@ -100,10 +101,19 @@ def rename_function(ctx):
     gui.exec_()
 
 
+ida_kernwin.update_action_shortcut("OpUserOffset", "")  # Ctrl+R
 utils.register_action(
     "renamefunction",
     "Rename function",
     rename_function,
     "Ctrl-R",
     [idaapi.BWN_DISASM, idaapi.BWN_PSEUDOCODE],
+)
+utils.register_action(
+    "renameobject",
+    "Rename object",
+    rename_function,
+    None,
+    [idaapi.BWN_LOCTYPS],
+    True,
 )

@@ -1,3 +1,4 @@
+from importlib.metadata import entry_points
 import idc
 import idautils
 import idaapi
@@ -23,10 +24,6 @@ class action_handler_t(idaapi.action_handler_t):
             self.target_attr = "form_type"
 
         self.enabled_views = enabled_views
-        if idaapi.IDA_SDK_VERSION >= 900:
-            self.enabled_views.append(idaapi.BWN_HEXVIEW)
-        else:
-            self.enabled_views.append(idaapi.BWN_DUMP)
 
     def activate(self, ctx):
         self.callback(ctx)
@@ -39,12 +36,28 @@ class action_handler_t(idaapi.action_handler_t):
             return idaapi.AST_DISABLE_FOR_WIDGET
 
 
-def register_action(name, description, callback, shortcut=None, views=[]):
+class UI_Hook(idaapi.UI_Hooks):
+    def __init__(self, entry_name, views, action):
+        idaapi.UI_Hooks.__init__(self)
+        self.views = views
+        self.entry_name = entry_name
+        self.action = action
+
+    def finish_populating_widget_popup(self, form, popup):
+        form_type = idaapi.get_widget_type(form)
+        if form_type in self.views:
+            idaapi.attach_action_to_popup(form, popup, self.action, self.entry_name)
+
+
+def register_action(name, description, callback, shortcut=None, views=[], popup=False):
+    handler = action_handler_t(callback, views)
     idaapi.register_action(
         idaapi.action_desc_t(
             name,
             description,
-            action_handler_t(callback, views),
+            handler,
             shortcut,
         )
     )
+    if popup:
+        UI_Hook(name, views, handler).hook()
