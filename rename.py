@@ -63,7 +63,11 @@ def rename_object(obj_name, new_obj_name):
 class RenameFunctionGUI(QtWidgets.QDialog):
     def __init__(self):
         QtWidgets.QDialog.__init__(
-            self, None, QtCore.Qt.WindowSystemMenuHint | QtCore.Qt.WindowTitleHint
+            self,
+            None,
+            QtCore.Qt.WindowSystemMenuHint
+            | QtCore.Qt.WindowTitleHint
+            | QtCore.Qt.WindowCloseButtonHint,
         )
         layout = QtWidgets.QVBoxLayout()
         stop_label = QtWidgets.QLabel()
