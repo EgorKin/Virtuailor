@@ -100,4 +100,10 @@ def rename_function(ctx):
     gui.exec_()
 
 
-utils.register_action("renamefunction", "Rename function", rename_function, "Ctrl-R")
+utils.register_action(
+    "renamefunction",
+    "Rename function",
+    rename_function,
+    "Ctrl-R",
+    [idaapi.BWN_DISASM, idaapi.BWN_PSEUDOCODE],
+)
