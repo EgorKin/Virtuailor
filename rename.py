@@ -61,6 +61,9 @@ def rename_object(obj_name, new_obj_name):
         cur = idc.get_next_func(cur)
 
 
+# TODO: rename object GUI
+
+
 class RenameFunctionGUI(QtWidgets.QDialog):
     def __init__(self):
         QtWidgets.QDialog.__init__(
@@ -72,14 +75,17 @@ class RenameFunctionGUI(QtWidgets.QDialog):
         )
         self.setWindowTitle("Rename Function")
         layout = QtWidgets.QVBoxLayout()
+
+        row_layout = QtWidgets.QHBoxLayout()
         stop_label = QtWidgets.QLabel()
         stop_label.setText("End Address:")
-        layout.addWidget(stop_label)
+        row_layout.addWidget(stop_label)
 
         self.stop_line = QtWidgets.QLineEdit()
         self.stop_line.setObjectName("stop_line")
         self.stop_line.setText("dummy text")
-        layout.addWidget(self.stop_line)
+        row_layout.addWidget(self.stop_line)
+        layout.addLayout(row_layout)
 
         button_ok = QtWidgets.QPushButton("&OK")
         button_ok.setDefault(True)
@@ -97,6 +103,8 @@ class RenameFunctionGUI(QtWidgets.QDialog):
 
 
 def rename_function(ctx):
+    print(type(ctx))
+    print(dir(ctx))
     gui = RenameFunctionGUI()
     gui.exec_()
 
