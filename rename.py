@@ -84,9 +84,6 @@ class RenameFunctionGUI(QtWidgets.QDialog):
         self.stop_line = QtWidgets.QLineEdit()
         self.stop_line.setObjectName("stop_line")
         self.stop_line.setText("dummy text")
-        self.stop_line.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
-        )
         row_layout.addWidget(self.stop_line)
         layout.addLayout(row_layout)
 
@@ -97,9 +94,6 @@ class RenameFunctionGUI(QtWidgets.QDialog):
 
         button_ok = QtWidgets.QPushButton("&OK")
         button_ok.setDefault(True)
-        button_ok.setSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred
-        )
         button_ok.clicked.connect(self.on_ok_clicked)
         layout.addWidget(button_ok)
 
