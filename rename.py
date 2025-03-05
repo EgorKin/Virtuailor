@@ -121,7 +121,11 @@ class RenameFunctionGUI(QtWidgets.QDialog):
         row_layout.addWidget(self.func_name_area)
         layout.addLayout(row_layout)
 
-        layout.addItem(spacer)
+        # cannot register one widget twice, causing crash
+        spacer2 = QtWidgets.QSpacerItem(
+            0, 8, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
+        )
+        layout.addItem(spacer2)
 
         button_ok = QtWidgets.QPushButton("&OK")
         button_ok.setDefault(True)
@@ -139,8 +143,6 @@ class RenameFunctionGUI(QtWidgets.QDialog):
         self.setLayout(layout)
 
     def on_ok_clicked(self):
-        self.close()
-        return
         new_basename = self.func_name_area.text()
         if self.basename != new_basename:
             if self.scope:
@@ -150,9 +152,6 @@ class RenameFunctionGUI(QtWidgets.QDialog):
             print("Renaming `" + self.old_name + "` to `" + new_name + "`")
             rename_func(self.func_addr, self.old_name, new_name)
 
-        self.close()
-
-    def closeEvent(self, event):
         self.close()
 
 
