@@ -74,6 +74,7 @@ class RenameFunctionGUI(QtWidgets.QDialog):
             | QtCore.Qt.WindowCloseButtonHint,
         )
         self.setWindowTitle("Rename Function")
+        self.setFixedWidth(400)
         layout = QtWidgets.QVBoxLayout()
 
         ea = idc.here()
@@ -111,7 +112,12 @@ class RenameFunctionGUI(QtWidgets.QDialog):
             QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred
         )
         button_ok.clicked.connect(self.on_ok_clicked)
-        layout.addWidget(button_ok)
+        button_layout = QtWidgets.QHBoxLayout()  # New layout for centering the button
+        button_layout.addStretch()  # Pushes the button to the center
+        button_layout.addWidget(button_ok)  # Add the OK button
+        button_layout.addStretch()  # Pushes the button to the center
+
+        layout.addLayout(button_layout)  # Add the button layout to the main layout
 
         self.setLayout(layout)
 
