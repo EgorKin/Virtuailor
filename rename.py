@@ -140,7 +140,7 @@ class RenameFunctionGUI(QtWidgets.QDialog):
         self.setLayout(layout)
 
     def on_ok_clicked(self):
-        new_basename = self.func_name_area.text()
+        new_basename = str(self.func_name_area.text())
         if self.basename != new_basename:
             if self.scope:
                 new_name = self.scope + new_basename
