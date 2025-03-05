@@ -65,7 +65,7 @@ def rename_object(obj_name, new_obj_name):
 
 
 class RenameFunctionGUI(QtWidgets.QDialog):
-    def __init__(self, ea):
+    def __init__(self):
         QtWidgets.QDialog.__init__(
             self,
             None,
@@ -76,15 +76,28 @@ class RenameFunctionGUI(QtWidgets.QDialog):
         self.setWindowTitle("Rename Function")
         layout = QtWidgets.QVBoxLayout()
 
-        row_layout = QtWidgets.QHBoxLayout()
-        stop_label = QtWidgets.QLabel()
-        stop_label.setText("End Address:")
-        row_layout.addWidget(stop_label)
+        ea = idc.here()
+        func_name = idc.get_func_name(ea)
+        if not func_name:
+            raise Exception(
+                "RenameFunctionGUI: Failed to get function name at" + hex(ea)
+            )
 
-        self.stop_line = QtWidgets.QLineEdit()
-        self.stop_line.setObjectName("stop_line")
-        self.stop_line.setText("dummy text")
-        row_layout.addWidget(self.stop_line)
+        sep_idx = func_name.rfind("::")
+        scope = func_name[:sep_idx]
+        name = func_name[sep_idx + 2 :]
+
+        row_layout = QtWidgets.QHBoxLayout()
+        scope_label = QtWidgets.QLabel()
+        scope_label.setText(scope)
+        row_layout.addWidget(scope_label)
+
+        self.func_line = QtWidgets.QLineEdit()
+        self.func_line.setText(func_name)
+        self.func_line.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
+        )
+        row_layout.addWidget(self.func_line)
         layout.addLayout(row_layout)
 
         spacer = QtWidgets.QSpacerItem(
@@ -94,6 +107,9 @@ class RenameFunctionGUI(QtWidgets.QDialog):
 
         button_ok = QtWidgets.QPushButton("&OK")
         button_ok.setDefault(True)
+        button_ok.setSizePolicy(
+            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred
+        )
         button_ok.clicked.connect(self.on_ok_clicked)
         layout.addWidget(button_ok)
 
@@ -110,7 +126,7 @@ class RenameFunctionGUI(QtWidgets.QDialog):
 def rename_function(ctx):
     print(type(ctx))
     print(dir(ctx))
-    gui = RenameFunctionGUI(ctx)
+    gui = RenameFunctionGUI()
     gui.exec_()
 
 
