@@ -152,78 +152,15 @@ class RenameFunctionGUI(QtWidgets.QDialog):
         self.close()
 
 
-class RenameObjectGUI(QtWidgets.QDialog):
-    def __init__(self, ctx):
-        QtWidgets.QDialog.__init__(
-            self,
-            None,
-            QtCore.Qt.WindowSystemMenuHint
-            | QtCore.Qt.WindowTitleHint
-            | QtCore.Qt.WindowCloseButtonHint,
-        )
-
-        self.setWindowTitle("Rename Object")
-        self.setFixedWidth(600)
-        layout = QtWidgets.QVBoxLayout()
-
-        spacer = QtWidgets.QSpacerItem(
-            0, 8, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
-        )
-
-        layout.addItem(spacer)
-        self.obj_name_area = QtWidgets.QLineEdit()
-        self.obj_name_area.setText("dummy")
-        self.obj_name_area.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
-        )
-        layout.addItem(self.obj_name_area)
-
-        # cannot register one widget twice, causing crash
-        spacer2 = QtWidgets.QSpacerItem(
-            0, 8, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
-        )
-        layout.addItem(spacer2)
-
-        button_ok = QtWidgets.QPushButton("&OK")
-        button_ok.setDefault(True)
-        button_ok.setSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred
-        )
-        button_ok.clicked.connect(self.on_ok_clicked)
-        button_layout = QtWidgets.QHBoxLayout()
-        button_layout.addStretch()
-        button_layout.addWidget(button_ok)
-        button_layout.addStretch()
-
-        layout.addLayout(button_layout)
-
-        self.setLayout(layout)
-
-    def on_ok_clicked(self):
-        # TODO
-        self.close()
-
-
-"""
-<class 'ida_kernwin.action_activation_ctx_t'>
-['__class__', '__del__', '__delattr__', '__dict__', '__doc__', '__format__', '__getattribute__', '__hash__', '__init__', '__module__', '__new__', '__reduce__',
-'__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__', '__swig_destroy__', '__weakref__', '_get_form_type', '_get_reg', 'action', 
-'chooser_selection', 'cur_ea', 'cur_enum', 'cur_extracted_ea', 'cur_fchunk', 'cur_flags', 'cur_func', 'cur_seg', 'cur_strmem', 'cur_struc', 'focus', 'form_type', 
-'has_flag', 'reg', 'reserved', 'reset', 'this', 'thisown', 'widget', 'widget_title', 'widget_type']
-"""
+# <class 'ida_kernwin.action_activation_ctx_t'>
+# ['__class__', '__del__', '__delattr__', '__dict__', '__doc__', '__format__', '__getattribute__', '__hash__', '__init__', '__module__', '__new__', '__reduce__',
+# '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__', '__swig_destroy__', '__weakref__', '_get_form_type', '_get_reg', 'action',
+# 'chooser_selection', 'cur_ea', 'cur_enum', 'cur_extracted_ea', 'cur_fchunk', 'cur_flags', 'cur_func', 'cur_seg', 'cur_strmem', 'cur_struc', 'focus', 'form_type',
+# 'has_flag', 'reg', 'reserved', 'reset', 'this', 'thisown', 'widget', 'widget_title', 'widget_type']
 
 
 def rename_function_gui(ctx):
     gui = RenameFunctionGUI()
-    gui.exec_()
-
-
-def rename_object_gui(ctx):
-    print("Attributes of ctx object:")
-    for attr in dir(ctx):
-        if not attr.startswith("__"):
-            print(f"{attr}: {getattr(ctx, attr)}")
-    gui = RenameObjectGUI()
     gui.exec_()
 
 
@@ -234,12 +171,4 @@ utils.register_action(
     rename_function_gui,
     "Ctrl-R",
     [idaapi.BWN_DISASM, idaapi.BWN_PSEUDOCODE],
-)
-utils.register_action(
-    "renameobject",
-    "Rename object",
-    rename_object_gui,
-    None,
-    [idaapi.BWN_LOCTYPS],
-    True,
 )
