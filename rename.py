@@ -64,6 +64,15 @@ def rename_object(obj_name, new_obj_name):
 # TODO: rename object GUI
 
 
+def rename_func(func_addr, old_name, new_name):
+    idc.set_name(func_addr, new_name)
+    for id in range(idc.get_ordinal_qty()):
+        decl = idc.print_decls(str(id), 0)
+        if old_name in decl:  # ignore vtable ::_{n}:: case
+            decl = decl.replace(old_name, new_name)
+            reset_local_type(id, decl)
+
+
 class RenameFunctionGUI(QtWidgets.QDialog):
     def __init__(self):
         QtWidgets.QDialog.__init__(
@@ -78,15 +87,21 @@ class RenameFunctionGUI(QtWidgets.QDialog):
         layout = QtWidgets.QVBoxLayout()
 
         ea = idc.here()
-        func_name = idc.get_func_name(ea)
+        self.func_addr = idaapi.get_func(ea).start_ea
+        func_name = idc.get_func_name(self.func_addr)
+        self.old_name = func_name
         if not func_name:
             raise Exception(
                 "RenameFunctionGUI: Failed to get function name at" + hex(ea)
             )
 
         sep_idx = func_name.rfind("::")
-        scope = func_name[:sep_idx]
-        name = func_name[sep_idx + 2 :]
+        if sep_idx == -1:
+            self.scope = ""
+            self.basename = func_name
+        else:
+            self.scope = func_name[:sep_idx]
+            self.basename = func_name[sep_idx + 2 :]
 
         spacer = QtWidgets.QSpacerItem(
             0, 8, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
@@ -95,15 +110,15 @@ class RenameFunctionGUI(QtWidgets.QDialog):
         layout.addItem(spacer)
         row_layout = QtWidgets.QHBoxLayout()
         scope_label = QtWidgets.QLabel()
-        scope_label.setText(scope)
+        scope_label.setText(self.scope)
         row_layout.addWidget(scope_label)
 
-        self.func_line = QtWidgets.QLineEdit()
-        self.func_line.setText(func_name)
-        self.func_line.setSizePolicy(
+        self.func_name_area = QtWidgets.QLineEdit()
+        self.func_name_area.setText(self.basename)
+        self.func_name_area.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred
         )
-        row_layout.addWidget(self.func_line)
+        row_layout.addWidget(self.func_name_area)
         layout.addLayout(row_layout)
 
         layout.addItem(spacer)
@@ -114,24 +129,34 @@ class RenameFunctionGUI(QtWidgets.QDialog):
             QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred
         )
         button_ok.clicked.connect(self.on_ok_clicked)
-        button_layout = QtWidgets.QHBoxLayout()  # New layout for centering the button
-        button_layout.addStretch()  # Pushes the button to the center
-        button_layout.addWidget(button_ok)  # Add the OK button
-        button_layout.addStretch()  # Pushes the button to the center
+        button_layout = QtWidgets.QHBoxLayout()
+        button_layout.addStretch()
+        button_layout.addWidget(button_ok)
+        button_layout.addStretch()
 
-        layout.addLayout(button_layout)  # Add the button layout to the main layout
+        layout.addLayout(button_layout)
 
         self.setLayout(layout)
 
     def on_ok_clicked(self):
-        # TODO
+        self.close()
+        return
+        new_basename = self.func_name_area.text()
+        if self.basename != new_basename:
+            if self.scope:
+                new_name = self.scope + "::" + new_basename
+            else:
+                new_name = new_basename
+            print("Renaming `" + self.old_name + "` to `" + new_name + "`")
+            rename_func(self.func_addr, self.old_name, new_name)
+
         self.close()
 
     def closeEvent(self, event):
         self.close()
 
 
-def rename_function(ctx):
+def rename_function_gui(ctx):
     print(type(ctx))
     print(dir(ctx))
     gui = RenameFunctionGUI()
@@ -142,14 +167,14 @@ ida_kernwin.update_action_shortcut("OpUserOffset", "")  # Ctrl+R
 utils.register_action(
     "renamefunction",
     "Rename function",
-    rename_function,
+    rename_function_gui,
     "Ctrl-R",
     [idaapi.BWN_DISASM, idaapi.BWN_PSEUDOCODE],
 )
 utils.register_action(
     "renameobject",
     "Rename object",
-    rename_function,
+    rename_function_gui,
     None,
     [idaapi.BWN_LOCTYPS],
     True,
