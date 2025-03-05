@@ -74,7 +74,7 @@ class RenameFunctionGUI(QtWidgets.QDialog):
             | QtCore.Qt.WindowCloseButtonHint,
         )
         self.setWindowTitle("Rename Function")
-        self.setFixedWidth(400)
+        self.setFixedWidth(800)
         layout = QtWidgets.QVBoxLayout()
 
         ea = idc.here()
@@ -88,6 +88,11 @@ class RenameFunctionGUI(QtWidgets.QDialog):
         scope = func_name[:sep_idx]
         name = func_name[sep_idx + 2 :]
 
+        spacer = QtWidgets.QSpacerItem(
+            0, 8, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
+        )
+
+        layout.addItem(spacer)
         row_layout = QtWidgets.QHBoxLayout()
         scope_label = QtWidgets.QLabel()
         scope_label.setText(scope)
@@ -101,9 +106,6 @@ class RenameFunctionGUI(QtWidgets.QDialog):
         row_layout.addWidget(self.func_line)
         layout.addLayout(row_layout)
 
-        spacer = QtWidgets.QSpacerItem(
-            0, 10, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
-        )
         layout.addItem(spacer)
 
         button_ok = QtWidgets.QPushButton("&OK")
