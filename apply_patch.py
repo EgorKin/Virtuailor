@@ -5,7 +5,6 @@ import idc
 
 def apply_patch():
 
-    dif_file = ida_kernwin.ask_file(0, "*.dif", "Select dif file")
     dif_path = ida_kernwin.ask_file(0, "*.dif", "Select dif file")
     with open(dif_path, "r") as f:
         lines = f.readlines()
