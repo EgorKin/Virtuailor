@@ -4,6 +4,7 @@ objptr_register, vptr_register, vtable_register = "<<<objptr_register>>>", "<<<v
 objptr_offset, vptr_offset, vtable_offset = "<<<objptr_offset>>>", <<<vptr_offset>>>, <<<vtable_offset>>>
 relro_addr_ranges = <<<vtable_addr_ranges>>>
 
+settype_error = False
 
 def is_relro_addr(ea):
     return idc.get_segm_name(ea).startswith(".data.rel.ro")
@@ -137,7 +138,11 @@ def get_fixed_name(address, prefix=""):
         or name.startswith("loc_")
         or name == ""
     ):
-        addr_hex = hex(address - base)[2:-1]  # idc.SegStart(int(address))
+        h = hex(address - base)
+        if settype_error:
+            print("after settype_error", h)
+            print(address, base)
+        addr_hex = h[2:-1]  # idc.SegStart(int(address))
         if addr_hex[-1] == "L":
             addr_hex = addr_hex[:-1]
         name = prefix + addr_hex
@@ -408,6 +413,7 @@ def do_logic():
                 print(c)
                 with open("failed_casts.py", "a") as f:
                     f.write(c + "\n")
+                    settype_error = True
             else:
                 obj_name = get_fixed_name(object_addr, object_struct_name.lower() + "_")
                 if not idaapi.set_name(object_addr, obj_name, idaapi.SN_FORCE):
