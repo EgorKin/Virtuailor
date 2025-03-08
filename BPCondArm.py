@@ -398,6 +398,19 @@ def do_logic():
             # )
 
     # annotate code
+    if object_addr:
+        if not idc.GetType(object_addr):  # objects only have one fixed type
+            if not idc.SetType(object_addr, object_struct_name):
+                #print(hex(object_addr))
+                inc_obj_count() # prevent future conflict
+                raise Exception("SetType("+hex(object_addr)+", "+ '"'+object_struct_name+'"' +") failed")
+            else:
+                obj_name = get_fixed_name(object_addr, object_struct_name.lower() + "_")
+                if not idaapi.set_name(object_addr, obj_name, idaapi.SN_FORCE):
+                    raise Exception(
+                        "set_name obj " + obj_name + "to " + hex(object_addr) + " failed"
+                    )
+
     if objptr_addr:
         existing_objptr_type = idc.GetType(objptr_addr)
         if not existing_objptr_type:
@@ -418,19 +431,6 @@ def do_logic():
         else:
             if not existing_objptr_type.startswith(object_struct_name):
                 append_cmt(objptr_addr, object_struct_name + "*", repeatable=1)
-
-    if object_addr:
-        if not idc.GetType(object_addr):  # objects only have one fixed type
-            if not idc.SetType(object_addr, object_struct_name):
-                #print(hex(object_addr))
-                inc_obj_count() # prevent future conflict
-                raise Exception("SetType("+hex(object_addr)+", "+ '"'+object_struct_name+'"' +") failed")
-            else:
-                obj_name = get_fixed_name(object_addr, object_struct_name.lower() + "_")
-                if not idaapi.set_name(object_addr, obj_name, idaapi.SN_FORCE):
-                    raise Exception(
-                        "set_name obj " + obj_name + "to " + hex(object_addr) + " failed"
-                    )
 
     idc.OpStroff(idautils.DecodeInstruction(ref_vtable_addr), 1, vtable_struct_id)
 
