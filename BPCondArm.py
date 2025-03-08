@@ -336,6 +336,7 @@ def get_addrs():
 
 
 def do_logic():
+    global settype_error
     try:
         objptr_addr, object_addr, vtable_addr, vfunc_addr = get_addrs()
     except:
@@ -435,6 +436,7 @@ def do_logic():
                 print(c)
                 with open("failed_casts.py", "a") as f:
                     f.write(c + "\n")
+                    settype_error = True
 
             pobj_name = get_fixed_name(
                 objptr_addr, "p_" + object_struct_name.lower() + "_"
