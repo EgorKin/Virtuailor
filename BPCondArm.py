@@ -13,7 +13,9 @@ def is_relro_addr(ea):
     return False
 
 def is_writable(ea):
-    return ".ro" not in idc.get_segm_name(ea) and idc.get_segm_attr(ea, idc.SEGATTR_PERM) & 2 != 0
+    seg_name = idc.get_segm_name(ea)
+    # get_segm_attr cannot handle invalid addr
+    return seg_name and ".ro" not in seg_name and idc.get_segm_attr(ea, idc.SEGATTR_PERM) & 2 != 0
 
 
 import idc
