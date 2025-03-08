@@ -435,7 +435,7 @@ def do_logic():
             )
             if not idaapi.set_name(objptr_addr, pobj_name, idaapi.SN_FORCE):
                 raise Exception(
-                    "set_name pobj " + pobj_name + "to" + hex(objptr_addr) + " failed"
+                    "set_name pobj " + pobj_name + " to " + hex(objptr_addr) + " failed"
                 )
         else:
             if not existing_objptr_type.startswith(object_struct_name):
