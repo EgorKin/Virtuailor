@@ -86,3 +86,5 @@ if __name__ == "__main__":
         vtableAddress.print_counter()
     with open("obj_count.txt", "w") as f:
         f.write("0")
+    with open("failed_casts.py", "w") as f:
+        pass
