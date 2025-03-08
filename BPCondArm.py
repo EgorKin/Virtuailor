@@ -404,8 +404,10 @@ def do_logic():
                 #print(hex(object_addr))
                 # inc_obj_count() # prevent future conflict (seems not needed)
                 #raise Exception("SetType("+hex(object_addr)+", "+ '"'+object_struct_name+'"' +") failed")
+                c = "SetType("+hex(object_addr)+", "+ '"'+object_struct_name+'"' +")"
+                print(c)
                 with open("failed_casts.py", "a") as f:
-                    f.write("SetType("+hex(object_addr)+", "+ '"'+object_struct_name+'"' +")\n")
+                    f.write(c + "\n")
             else:
                 obj_name = get_fixed_name(object_addr, object_struct_name.lower() + "_")
                 if not idaapi.set_name(object_addr, obj_name, idaapi.SN_FORCE):
@@ -423,8 +425,10 @@ def do_logic():
                 #print(existing_objptr_type)
                 #print(idc.GetType(objptr_addr))
                 #raise Exception("SetType("+hex(objptr_addr)+", "+ '"'+object_struct_name +"*"+'"'+") failed")
+                c = "SetType("+hex(objptr_addr)+", "+ '"'+object_struct_name +"*"+'"'+")"
+                print(c)
                 with open("failed_casts.py", "a") as f:
-                    f.write("SetType("+hex(objptr_addr)+", "+ '"'+object_struct_name +"*"+'"'+")\n")
+                    f.write(c + "\n")
 
             pobj_name = get_fixed_name(
                 objptr_addr, "p_" + object_struct_name.lower() + "_"
