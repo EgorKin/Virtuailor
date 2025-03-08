@@ -402,10 +402,11 @@ def do_logic():
         existing_objptr_type = idc.GetType(objptr_addr)
         if not existing_objptr_type:
             if not idc.SetType(objptr_addr, object_struct_name + "*"):
-                # print(hex(objptr_addr))
-                print(existing_objptr_type)
-                print(idc.GetType(objptr_addr))
-                raise Exception("SetType("+hex(objptr_addr)+", "+ '"'+object_struct_name +"*"+'"'+") failed")
+                if not idc.SetType(objptr_addr, object_struct_name + "*"):
+                    # print(hex(objptr_addr))
+                    print(existing_objptr_type)
+                    print(idc.GetType(objptr_addr))
+                    raise Exception("SetType("+hex(objptr_addr)+", "+ '"'+object_struct_name +"*"+'"'+") failed")
 
             pobj_name = get_fixed_name(
                 objptr_addr, "p_" + object_struct_name.lower() + "_"
