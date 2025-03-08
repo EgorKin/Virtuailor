@@ -6,10 +6,14 @@ relro_addr_ranges = <<<vtable_addr_ranges>>>
 
 
 def is_relro_addr(ea):
+    return idc.get_segm_name(ea).startswith(".data.rel.ro")
     for r in relro_addr_ranges:
         if ea >= r[0] and ea < r[1]:
             return True
     return False
+
+def is_writable(ea):
+    return ".ro" not in idc.get_segm_name(ea) and idc.get_segm_attr(ea, idc.SEGATTR_PERM) & 2 != 0
 
 
 import idc
@@ -339,7 +343,9 @@ def do_logic():
 
     if (
         not is_relro_addr(vtable_addr)
+        or (object_addr and not is_writable(object_addr)) # not user defined obj
         or not is_func(vfunc_addr)
+        or get_name(vtable_addr, False).startswith("_Z")
         or get_name(vfunc_addr, False).startswith("_Z")
     ):
         # TODO: still do some annotation
@@ -395,7 +401,9 @@ def do_logic():
         if not existing_objptr_type:
             if not idc.SetType(objptr_addr, object_struct_name + "*"):
                 # print(hex(objptr_addr))
-                raise Exception("SetType("+hex(objptr_addr)+", "+ object_struct_name +"*"+") failed")
+                print(existing_objptr_type)
+                print(idc.GetType(objptr_addr))
+                raise Exception("SetType("+hex(objptr_addr)+", "+ '"'+object_struct_name +"*"+'"'+") failed")
 
             pobj_name = get_fixed_name(
                 objptr_addr, "p_" + object_struct_name.lower() + "_"
@@ -413,7 +421,7 @@ def do_logic():
             if not idc.SetType(object_addr, object_struct_name):
                 #print(hex(object_addr))
                 inc_obj_count() # prevent future conflict
-                raise Exception("SetType("+hex(object_addr)+", "+ object_struct_name +") failed")
+                raise Exception("SetType("+hex(object_addr)+", "+ '"'+object_struct_name+'"' +") failed")
             else:
                 obj_name = get_fixed_name(object_addr, object_struct_name.lower() + "_")
                 if not idaapi.set_name(object_addr, obj_name, idaapi.SN_FORCE):
