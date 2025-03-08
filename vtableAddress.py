@@ -173,6 +173,11 @@ def back_search_deref(start_addr, end_addr, target_reg, offset_must_number=True)
                 else:
                     if offset_must_number and offset[0] == "R":
                         return None
+                    # check offset is valid expression
+                    try:
+                        offset = str(eval(offset))
+                    except:
+                        return None
                     return cur_addr, base_register, offset
 
             elif mnem.startswith("MOV") and idc.GetOpnd(cur_addr, 0) == target_reg:
