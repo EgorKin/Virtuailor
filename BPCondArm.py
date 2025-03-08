@@ -402,8 +402,10 @@ def do_logic():
         if not idc.GetType(object_addr):  # objects only have one fixed type
             if not idc.SetType(object_addr, object_struct_name):
                 #print(hex(object_addr))
-                inc_obj_count() # prevent future conflict
-                raise Exception("SetType("+hex(object_addr)+", "+ '"'+object_struct_name+'"' +") failed")
+                # inc_obj_count() # prevent future conflict (seems not needed)
+                #raise Exception("SetType("+hex(object_addr)+", "+ '"'+object_struct_name+'"' +") failed")
+                with open("failed_casts.py", "a") as f:
+                    f.write("SetType("+hex(object_addr)+", "+ '"'+object_struct_name+'"' +")\n")
             else:
                 obj_name = get_fixed_name(object_addr, object_struct_name.lower() + "_")
                 if not idaapi.set_name(object_addr, obj_name, idaapi.SN_FORCE):
@@ -416,11 +418,13 @@ def do_logic():
         if not existing_objptr_type:
             ret = idc.SetType(objptr_addr, object_struct_name + "*")
             if not ret:
-                print("ret", ret) # None or False?
+                #print("ret", ret) # None or False? A: False
                 # print(hex(objptr_addr))
-                print(existing_objptr_type)
-                print(idc.GetType(objptr_addr))
-                raise Exception("SetType("+hex(objptr_addr)+", "+ '"'+object_struct_name +"*"+'"'+") failed")
+                #print(existing_objptr_type)
+                #print(idc.GetType(objptr_addr))
+                #raise Exception("SetType("+hex(objptr_addr)+", "+ '"'+object_struct_name +"*"+'"'+") failed")
+                with open("failed_casts.py", "a") as f:
+                    f.write("SetType("+hex(objptr_addr)+", "+ '"'+object_struct_name +"*"+'"'+")\n")
 
             pobj_name = get_fixed_name(
                 objptr_addr, "p_" + object_struct_name.lower() + "_"
@@ -476,4 +480,5 @@ except Exception as e:
 
     traceback.print_exc()
     # print("Error! at BP address:", hex(idc.GetRegValue("pc")))
+    inc_obj_count()
     return True
