@@ -4,7 +4,6 @@ objptr_register, vptr_register, vtable_register = "<<<objptr_register>>>", "<<<v
 objptr_offset, vptr_offset, vtable_offset = "<<<objptr_offset>>>", <<<vptr_offset>>>, <<<vtable_offset>>>
 relro_addr_ranges = <<<vtable_addr_ranges>>>
 
-settype_error = False
 
 def is_relro_addr(ea):
     return idc.get_segm_name(ea).startswith(".data.rel.ro")
@@ -138,10 +137,10 @@ def get_fixed_name(address, prefix=""):
         or name.startswith("loc_")
         or name == ""
     ):
-        h = hex(address - base)
-        if settype_error:
-            print("after settype_error", h)
-            print(address, base)
+        if base > address:
+            h = hex(address)
+        else:
+            h = hex(address - base)
         addr_hex = h[2:-1]  # idc.SegStart(int(address))
         if addr_hex[-1] == "L":
             addr_hex = addr_hex[:-1]
@@ -410,11 +409,10 @@ def do_logic():
                 #print(hex(object_addr))
                 # inc_obj_count() # prevent future conflict (seems not needed)
                 #raise Exception("SetType("+hex(object_addr)+", "+ '"'+object_struct_name+'"' +") failed")
-                c = "SetType("+hex(object_addr)+", "+ '"'+object_struct_name+'"' +")"
+                c = "idc.SetType("+hex(object_addr)+", "+ '"'+object_struct_name+'"' +")"
                 print(c)
                 with open("failed_casts.py", "a") as f:
                     f.write(c + "\n")
-                    settype_error = True
             else:
                 obj_name = get_fixed_name(object_addr, object_struct_name.lower() + "_")
                 if not idaapi.set_name(object_addr, obj_name, idaapi.SN_FORCE):
@@ -432,19 +430,23 @@ def do_logic():
                 #print(existing_objptr_type)
                 #print(idc.GetType(objptr_addr))
                 #raise Exception("SetType("+hex(objptr_addr)+", "+ '"'+object_struct_name +"*"+'"'+") failed")
-                c = "SetType("+hex(objptr_addr)+", "+ '"'+object_struct_name +"*"+'"'+")"
+                c = "idc.SetType("+hex(objptr_addr)+", "+ '"'+object_struct_name +"*"+'"'+")"
                 print(c)
                 with open("failed_casts.py", "a") as f:
                     f.write(c + "\n")
-                    settype_error = True
 
             pobj_name = get_fixed_name(
                 objptr_addr, "p_" + object_struct_name.lower() + "_"
             )
+            # seems also fail if -base < 0
             if not idaapi.set_name(objptr_addr, pobj_name, idaapi.SN_FORCE):
-                raise Exception(
-                    "set_name pobj " + pobj_name + " to " + hex(objptr_addr) + " failed"
-                )
+                #raise Exception(
+                #    "set_name pobj " + pobj_name + " to " + hex(objptr_addr) + " failed"
+                #)
+                c = "idaapi.set_name("+hex(objptr_addr)+", "+ '"'+pobj_name +'"'+", idaapi.SN_FORCE)"
+                print(c)
+                with open("failed_casts.py", "a") as f:
+                    f.write(c + "\n")
         else:
             if not existing_objptr_type.startswith(object_struct_name):
                 append_cmt(objptr_addr, object_struct_name + "*", repeatable=1)
