@@ -21,6 +21,10 @@ def is_writable(ea):
 import idc
 import idaapi
 import idautils
+import ida_funcs
+import ida_bytes
+import platform
+
 
 base = idaapi.get_imagebase()
 call_addr += base
@@ -73,7 +77,10 @@ def append_cmt(ea, cmt, repeatable=0, func=False, allow_duplicate=False):
     if not allow_duplicate and (cur_cmt and cmt in cur_cmt):
         return
     if cur_cmt:
-        new_cmt = cur_cmt + "\n" + cmt
+        if platform.system() == 'Windows':
+            new_cmt = cur_cmt + "\r\n" + cmt
+        else:
+            new_cmt = cur_cmt + "\n" + cmt
     else:
         new_cmt = cmt
 
@@ -99,8 +106,8 @@ def is_register(offset):
 
 
 def make_func(ea):
-    code_err = idc.MakeCode(ea)
-    func_err = idc.MakeFunction(ea)
+    code_err = idc.create_insn(ea) #idc.MakeCode(ea)
+    func_err = idc.add_func(ea, idc.BADADDR) #idc.MakeFunction(ea)
     return code_err, func_err
 
 
@@ -108,21 +115,21 @@ def fix_arm_vtable(vfunc_addr):
     if not is_code(vfunc_addr):
         code_err, func_err = make_func(vfunc_addr)
         if code_err == 0:
-            print("Failed to create code, at", hex(vfunc_addr))
+            print("Failed to create code, at ", hex(vfunc_addr))
         elif not func_err:
-            print("Failed to create function, at".hex(vfunc_addr))
+            print("Failed to create function, at ", hex(vfunc_addr))
 
 
 def get_name(address, demangle=False):
-    name = idc.GetFunctionName(address)
+    name = ida_funcs.get_func_name(address)
     if name == "":
-        name = idc.Name(address)
+        name = idc.get_name(address)
         if demangle and name.startswith("_Z"):
-            name = idc.Demangle(name, 0)[: name.find("(")]  # strip off the arguments
+            name = idc.demangle_name(name, 0)[: name.find("(")]  # strip off the arguments
     return name
 
 
-def extract_object_name(name):
+def extract_object_name(name:str):
     sep_index = name.find("::")
     if sep_index != -1:
         return name[:sep_index]
@@ -149,7 +156,7 @@ def get_fixed_name(address, prefix=""):
 
 
 def add_comment_to_struct_members(struct_id, vtable_func_offset, start_address):
-    cur_cmt = idc.GetMemberComment(struct_id, vtable_func_offset, 1)
+    cur_cmt = idc.get_member_cmt(struct_id, vtable_func_offset, 1)
     new_cmt = ""
     if cur_cmt:
         if cur_cmt[:23] != "Was called from offset:":
@@ -158,7 +165,7 @@ def add_comment_to_struct_members(struct_id, vtable_func_offset, start_address):
             new_cmt = cur_cmt + ", " + start_address
     else:
         new_cmt = "Was called from offset: " + start_address
-    succ1 = idc.SetMemberComment(struct_id, vtable_func_offset, new_cmt, 1)
+    succ1 = idc.set_member_cmt(struct_id, vtable_func_offset, new_cmt, 1)
     return succ1
 
 
@@ -181,7 +188,7 @@ def get_decompiled_func_type(vfunc_addr):
     return idaapi.cfunc_type(d).dstr()
 
 
-def to_func_ptr_decl(func_type, func_name):
+def to_func_ptr_decl(func_type:str, func_name:str):
     ptr_str = "(*" + func_name + ")("
     return func_type.replace("(", ptr_str, 1)
 
@@ -194,7 +201,7 @@ def rename_function(func_addr, func_name):
         )
 
 
-def get_repetition_name(func_name, exist_names):
+def get_repetition_name(func_name:str, exist_names):
     parts = func_name.split("::")
     for i in range(1, 50):
         prefix = "_" + str(i)
@@ -268,7 +275,7 @@ def create_vtable_struct(object_struct_name, vtable_struct_name, vtable_addr):
     if len(fp_decls) == 0:
         raise EmptyVtableError("Empty vtable at " + hex(vtable_addr))
     vtable_c_struct = get_c_struct_str(vtable_struct_name, fp_decls)
-    struct_id = idc.SetLocalType(-1, vtable_c_struct, 0)
+    struct_id = idc.set_local_type(-1, vtable_c_struct, 0)
     if struct_id == 0:
         raise Exception("SetLocalType failed with:\n" + vtable_c_struct)
     return struct_id
@@ -280,7 +287,7 @@ def create_and_cast_vtable(object_struct_name, vtable_struct_name, vtable_addr):
     )
     # bug: idc.SetType return False but GetType can get (when empty struct)
     if not idc.SetType(vtable_addr, vtable_struct_name):
-        t = idc.GetType(vtable_addr)
+        t = idc.get_type(vtable_addr)
         raise Exception(
             "create_and_cast_vtable: SetType failed at "
             + hex(vtable_addr)
@@ -314,8 +321,8 @@ def inc_obj_count():
 
 def get_addrs():
     if mode == "OBJPTR":
-        objptr_addr = idc.GetRegValue(objptr_register) + (
-            idc.GetRegValue(objptr_offset)
+        objptr_addr = idc.get_reg_value(objptr_register) + (
+            idc.get_reg_value(objptr_offset)
             if is_register(objptr_offset)
             else int(objptr_offset, 16)
         )
@@ -324,12 +331,12 @@ def get_addrs():
         vfunc_addr = read_func_ptr(vtable_addr + vtable_offset)
         return objptr_addr, object_addr, vtable_addr, vfunc_addr
     elif mode == "VPTR":
-        object_addr = idc.GetRegValue(vptr_register) + vptr_offset
+        object_addr = idc.get_reg_value(vptr_register) + vptr_offset
         vtable_addr = read_dword_checked(object_addr)
         vfunc_addr = read_func_ptr(vtable_addr + vtable_offset)
         return None, object_addr, vtable_addr, vfunc_addr
     else:  # "VTABLE"
-        vtable_addr = idc.GetRegValue(vtable_register)
+        vtable_addr = idc.get_reg_value(vtable_register)
         vfunc_addr = read_func_ptr(vtable_addr + vtable_offset)
         return None, None, vtable_addr, vfunc_addr
 
@@ -359,17 +366,17 @@ def do_logic():
         return
 
     # check whether vtable has been typed
-    vtable_struct_name = idc.GetType(vtable_addr)
+    vtable_struct_name = idc.get_type(vtable_addr)
     if not vtable_struct_name:  # create vtable struct & object struct
         # create object name first
         # TODO: optimize object count read write
         cnt = get_obj_count()
         object_struct_name = "Obj_" + str(cnt)
         dummy_c_struct = get_c_struct_str(object_struct_name, ["void *vptr"])
-        object_struct_id = idc.SetLocalType(-1, dummy_c_struct, 0)
+        object_struct_id = idc.set_local_type(-1, dummy_c_struct, 0)
         if not object_struct_id:
-            print("SetLocalType " + str(dummy_c_struct) + " failed")
-        # obj_struct_id = idc.SetLocalType(-1, dummy_c_struct, 0)
+            print("set_local_type " + str(dummy_c_struct) + " failed")
+        # obj_struct_id = idc.set_local_type(-1, dummy_c_struct, 0)
         # cast vtable with `object_struct_name::vtable`
         vtable_struct_name = object_struct_name + "::vtable"
         try:
@@ -377,24 +384,24 @@ def do_logic():
                 object_struct_name, vtable_struct_name, vtable_addr
             )
         except (ReadMemoryError, EmptyVtableError):
-            if idc.SetLocalType(object_struct_id, "", 0):
+            if idc.set_local_type(object_struct_id, "", 0):
                 object_struct_id = None
             else:
-                raise Exception("SetLocalType empty failed")
+                raise Exception("set_local_type empty failed")
             return
         # create object type
         object_c_struct = get_c_struct_str(
             object_struct_name, [vtable_struct_name + " *vptr"]
         )
-        if not idc.SetLocalType(object_struct_id, None, 0):
-            raise Exception("SetLocalType empty failed with: " + str(object_struct_id))
-        if not idc.SetLocalType(object_struct_id, object_c_struct, 0) != 0:
-            raise Exception("SetLocalType failed with:\n" + object_c_struct)
+        if not idc.set_local_type(object_struct_id, None, 0):
+            raise Exception("set_local_type empty failed with: " + str(object_struct_id))
+        if not idc.set_local_type(object_struct_id, object_c_struct, 0) != 0:
+            raise Exception("set_local_type failed with:\n" + object_c_struct)
         inc_obj_count()
 
     else:  # already typed, use existing object struct & vtable struct
         object_struct_name = extract_object_name(vtable_struct_name)
-        vtable_struct_id = idc.GetStrucIdByName(vtable_struct_name)
+        vtable_struct_id = idc.get_struc_id(vtable_struct_name)
         # obj_struct_id = idc.GetStrucIdByName(object_struct_name)
         if not object_struct_name or not object_struct_name.startswith("Obj_"):
             return
@@ -404,7 +411,7 @@ def do_logic():
 
     # annotate code
     if object_addr:
-        if not idc.GetType(object_addr):  # objects only have one fixed type
+        if not idc.get_type(object_addr):  # objects only have one fixed type
             if not idc.SetType(object_addr, object_struct_name):
                 #print(hex(object_addr))
                 # inc_obj_count() # prevent future conflict (seems not needed)
@@ -421,7 +428,7 @@ def do_logic():
                     )
 
     if objptr_addr:
-        existing_objptr_type = idc.GetType(objptr_addr)
+        existing_objptr_type = idc.get_type(objptr_addr)
         if not existing_objptr_type:
             ret = idc.SetType(objptr_addr, object_struct_name + "*")
             if not ret:
@@ -451,7 +458,7 @@ def do_logic():
             if not existing_objptr_type.startswith(object_struct_name):
                 append_cmt(objptr_addr, object_struct_name + "*", repeatable=1)
 
-    idc.OpStroff(idautils.DecodeInstruction(ref_vtable_addr), 1, vtable_struct_id)
+    idc.op_stroff(idautils.DecodeInstruction(ref_vtable_addr), 1, vtable_struct_id)
 
     # add xref to obj & vtable (ida ignores duplicate xref and returns True)
     if object_addr and not idc.add_dref(
@@ -495,4 +502,4 @@ except Exception as e:
     traceback.print_exc()
     # print("Error! at BP address:", hex(idc.GetRegValue("pc")))
     inc_obj_count()
-    return True
+    #return True
