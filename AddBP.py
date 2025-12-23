@@ -69,7 +69,7 @@ class Condition:
 
 
 def define_function_trace(adr):
-    return idc.SetBptAttr(adr, idc.BPTATTR_FLAGS, idc.BPT_ENABLED | idc.BPT_TRACE | idc.BPT_TRACEON | idc.BPT_TRACE_FUNC) #idc.BPT_BRK |
+    return idc.set_bpt_attr(adr, idc.BPTATTR_FLAGS, idc.BPT_ENABLED | idc.BPT_TRACE | idc.BPT_TRACEON | idc.BPT_TRACE_FUNC) #idc.BPT_BRK |
 
 
 def delete_bp(adr):
@@ -101,4 +101,3 @@ def add(ea, cond_user=''):
     hook = AddBreakPoint(ea, cond)
     hook.set()
     return hook
-
