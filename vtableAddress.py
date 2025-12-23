@@ -1,8 +1,9 @@
 import idc
 import idautils
 import ida_frame
-import ida_struct
+#import ida_struct
 import idaapi
+import ida_ida
 import sys, os
 
 # LSP
@@ -23,7 +24,7 @@ REGISTERS = {
 }
 
 CALL_INSTRUCTION = {
-    "ARM": {False: "BLX", True: "BLR"},
+    "ARM": {False: "BLX", True: "BLR"}, # for ARM32 looking for BLX    Rn, for ARM64  BLR    Rn
     "Intel": {False: "call", True:"call"}
 }
 # fmt: on
@@ -31,12 +32,12 @@ CALL_INSTRUCTION = {
 
 def get_processor_architecture():
     arch = "Intel"
-    info = idaapi.get_inf_structure()
-    if info.procName == "ARM":
+    #info = idaapi.get_inf_structure()
+    if ida_ida.inf_get_procname() == "ARM":
         arch = "ARM"
-    if info.is_64bit():
+    if ida_ida.inf_is_64bit():
         return arch, True
-    elif info.is_32bit():
+    elif ida_ida.inf_is_32bit_exactly():
         return arch, False
     else:
         return "Error", False
@@ -64,9 +65,7 @@ def _get_arch_dct(arch, is_64):
             dct_arch["val_offset"] = 1
         return dct_arch
     else:
-        print(
-            "Error, Architecture is not supported. Supported architectures are Intel x64/x32 and Arm x64"
-        )
+        print("Error, Architecture is not supported. Supported architectures are Intel x64/x32 and Arm x64")
         return -1
 
 
@@ -93,7 +92,7 @@ def read_bp_cond_text():
     )
     if arch != "Error" or (arch == "ARM" and not is_64):
         with open(condition_file, "rb") as f1:
-            bp_cond_text = f1.read()
+            bp_cond_text = str(f1.read())
             return bp_cond_text
     raise Exception("no bp_cond_text")
 
@@ -160,10 +159,10 @@ def back_search_deref(start_addr, end_addr, target_reg, offset_must_number=True)
     cur_addr = start_addr
     tmp_stack_addr = None
     while cur_addr >= end_addr:
-        mnem = idc.GetMnem(cur_addr)
+        mnem = idc.print_insn_mnem(cur_addr)
         if not tmp_stack_addr:
-            if mnem.startswith("LDR") and idc.GetOpnd(cur_addr, 0) == target_reg:
-                opnd2 = idc.GetOpnd(cur_addr, 1)
+            if mnem.startswith("LDR") and idc.print_operand(cur_addr, 0) == target_reg:
+                opnd2 = idc.print_operand(cur_addr, 1)
                 base_register, offset = parse_arm_dereference(opnd2)
                 if base_register is None:  # unsupported deref
                     return None
@@ -172,6 +171,9 @@ def back_search_deref(start_addr, end_addr, target_reg, offset_must_number=True)
                     tmp_stack_addr = opnd2
                 else:
                     if offset_must_number and offset[0] == "R":
+                        # пока искали значение R3 нашлось
+                        # 000D6A18                 LDRNE           R3, [R2,R3]
+                        # а мы не умеем такое
                         return None
                     # check offset is valid expression
                     try:
@@ -180,28 +182,28 @@ def back_search_deref(start_addr, end_addr, target_reg, offset_must_number=True)
                         return None
                     return cur_addr, base_register, offset
 
-            elif mnem.startswith("MOV") and idc.GetOpnd(cur_addr, 0) == target_reg:
-                target_reg = idc.GetOpnd(cur_addr, 1)
+            elif mnem.startswith("MOV") and idc.print_operand(cur_addr, 0) == target_reg:
+                target_reg = idc.print_operand(cur_addr, 1)
                 if target_reg not in REGS:
                     return None
             elif (mnem == "BL" or mnem == "BLX") and target_reg in CALLER_SAVED_REGS:
                 return None
         else:
-            if mnem.startswith("STR") and idc.GetOpnd(cur_addr, 1) == tmp_stack_addr:
-                target_reg = idc.GetOpnd(cur_addr, 0)
+            if mnem.startswith("STR") and idc.print_operand(cur_addr, 1) == tmp_stack_addr:
+                target_reg = idc.print_operand(cur_addr, 0)
                 tmp_stack_addr = None
 
-        cur_addr = idc.PrevHead(cur_addr)
+        cur_addr = idc.prev_head(cur_addr)
     return None
 
 
 def get_con2_var_or_num_arm(func_reg, call_addr):
-    start_addr = idc.GetFunctionAttr(call_addr, idc.FUNCATTR_START)
-    ret = back_search_deref(idc.PrevHead(call_addr), start_addr, func_reg)
+    start_addr = idc.get_func_attr(call_addr, idc.FUNCATTR_START)
+    ret = back_search_deref(idc.prev_head(call_addr), start_addr, func_reg)
     if not ret:
         return None, None
     ref_vtable_addr, vtable_register, vtable_offset = ret
-    ret = back_search_deref(idc.PrevHead(ref_vtable_addr), start_addr, vtable_register)
+    ret = back_search_deref(idc.prev_head(ref_vtable_addr), start_addr, vtable_register)
     if not ret:
         return (
             "VTABLE",
@@ -213,7 +215,7 @@ def get_con2_var_or_num_arm(func_reg, call_addr):
         )
     ref_vptr_addr, vptr_register, vptr_offset = ret
     ret = back_search_deref(
-        idc.PrevHead(ref_vptr_addr),
+        idc.prev_head(ref_vptr_addr),
         start_addr,
         vptr_register,
         offset_must_number=False,
