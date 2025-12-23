@@ -6,7 +6,7 @@ import idaapi
 def get_segment_ranges(segment_names):
     segment_ranges = []
     for s in idautils.Segments():
-        if idc.SegName(s) in segment_names:
+        if idc.get_segm_name(s) in segment_names:
             segment_ranges.append((idc.SegStart(s), idc.SegEnd(s)))
     return segment_ranges
 
